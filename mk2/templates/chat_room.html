@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<video id="videoInput" style="display:none"></video>
+<canvas id="videoOutput" style="width:500px; height: 280;"></canvas>
+<div id="videoFrame"></div>
+<button class="btn waves-effect" onclick="toggleVideoCamera()"> Toggle Video</button>
+<div class="container" style="width:100%; padding: 0px; margin: 0px;">
+    <ul id='messages'>
+    </ul>
+    <div class="row" id="footer">
+        <form name="chat-form" action="" onsubmit="sendMessage(event)" class="col s12">
+            <div class="row">
+                <div class="input-field col s12" style="display: inline-flex">
+                    <input type="text" autocomplete="off" id="messageText" class="materialize-textarea"
+                        onclick="checkWebSocket(event)"></input>
+                    <button class="btn waves-effect waves-light send-button" type="submit" name="action"
+                        style="background-color: #4a85d9">
+                        <i class="material-icons right">send</i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    function getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min)) + min; //최댓값은 제외, 최솟값은 포함
+    }
+
+
+    url_segs = window.location.pathname.split("/");
+    var room_name = url_segs[1]
+    var uniqCode = getRandomInt(10000, 100000)
+    var current_user = url_segs[2]+'#'+uniqCode;
+    var isStreaming = 1
+    var intervalVid = setInterval(sendImage, 15);
+    
+    
+
+
+    if (window.location.protocol == "https:") {
+        var ws_scheme = "wss://";
+    } else {
+        var ws_scheme = "ws://"
+    };
+
+    var connection = new WebSocket(ws_scheme + location.host + "/ws/" + room_name);
+    
+    var messages = document.getElementById('messages')
+    function checkWebSocket(event) {
+        if (connection.readyState === WebSocket.CLOSED) {
+            console.log("WebSocket CLOSED: Reopening")
+            connection = new WebSocket(ws_scheme + location.host + "/ws/" + room_name);
+        }
+    }
+    connection.onmessage = function (event) {
+        // Get message back from websocket and display
+        var message = document.createElement('li');
+        message.setAttribute('class', 'message');
+        message.style.clear = 'both';
+
+        var event_data = JSON.parse(event.data);
+        var text_str = event_data.message
+        var userid_str = event_data.userid
+        var text = document.createTextNode(text_str)
+        var userid = document.createTextNode(userid_str);
+        if (event_data.type == "message"){
+    
+            console.log('Text Recieved: ' + text_str)
+    
+            var content_tag = document.createElement('div');
+            content_tag.appendChild(text)
+            content_tag.setAttribute("class", "content_tag")
+    
+            var userid_tag = document.createElement('div')
+            userid_tag.appendChild(userid)
+            userid_tag.setAttribute("class", "userid_tag")
+    
+            if (userid_str == current_user) {
+                userid_tag.setAttribute("class", "userid_tag_right")
+                content_tag.style.backgroundColor = '#ACEDFF'
+                message.style.float = 'right'
+                content_tag.style.float = 'right'
+            } else {
+                userid_tag.setAttribute("class", "userid_tag_left")
+                content_tag.style.backgroundColor = '#CAE5FF'
+                message.style.float = 'left'
+                content_tag.style.float = 'left'
+            }
+            message.appendChild(content_tag)
+            message.appendChild(userid_tag)
+            messages.appendChild(message)
+            messages.scrollTop = 999999999;
+        } else if(event_data.type=="video") {
+            if (userid_str == current_user){
+                0;
+            } else {
+                console.log(current_user)
+                var subFrame = document.getElementById(userid_str);
+                if (subFrame){
+                    subFrame.setAttribute('src', event_data.video)
+                } else {
+                    console.log('New video is created')
+                    const videoFrame = document.getElementById('videoFrame')
+                    const newFrame = document.createElement('img')
+                    newFrame.setAttribute("id", userid_str)
+                    newFrame.setAttribute("src", event_data.video)
+                    videoFrame.appendChild(newFrame)
+                }
+            }
+        }
+    };
+
+    function sendMessage(event) {
+        var input = document.getElementById("messageText")
+        if (input.value.length > 0) {
+            var message_obj = {
+                'type':'message',
+                'message': input.value,
+                'userid': current_user,
+            }
+            connection.send(JSON.stringify(message_obj))
+            input.value = ''
+        }
+        event.preventDefault()
+    }
+
+    const w = 300, h = 300;
+    navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia || navigator.mediaDevices.webkitGetUserMedia || navigator.mediaDevices.mozGetUserMedia;
+    const constraints = {audio: true, video: true};
+    const video = document.getElementById("videoInput");
+    video.width = w;
+    video.height = h;
+    function successCallback(stream){
+        video.srcObject = stream;
+        video.play();
+    }
+    function errorCallback(error){
+        console.log(error);
+    }
+    navigator.getUserMedia(constraints, successCallback, errorCallback);
+    var canvas = document.getElementById("videoOutput");
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext("2d");
+    function processImage(){
+        ctx.drawImage(video, 0, 0, w, h);
+        setTimeout(processImage, 1);
+    }
+    
+       
+    function sendImage(){
+        var rawData = canvas.toDataURL("image/jpeg", 0.5);
+        var jsonData = JSON.stringify({
+            "type": "video",
+            "video":rawData,
+            "userid":current_user,
+        });
+        connection.send(jsonData);
+    }
+    
+    
+    function toggleVideoCamera() {
+        if (!isStreaming) {
+            this.isStreaming = 1;
+            intervalVid = setInterval(sendImage, 15);
+        } else {
+            this.isStreaming = 0;
+            clearInterval(intervalVid);
+        }
+    }
+
+
+    processImage();
+
+</script>
+{% endblock %}
