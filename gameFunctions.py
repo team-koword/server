@@ -18,8 +18,8 @@ def getCol(loc: int, width: int) -> int:
 
 def getRightDist(wordTable: dict, loc: int, height: int, width: int) -> int:
     EMPTY = "  "
-    dist = 1
-    while dist < width - getCol(loc, width):
+    dist = 0
+    while getCol(loc, width) + dist < width:
         if wordTable[loc + dist] != EMPTY:
             break
         dist += 1
@@ -28,8 +28,8 @@ def getRightDist(wordTable: dict, loc: int, height: int, width: int) -> int:
 
 def getDownDist(wordTable: dict, loc: int, height: int, width: int) -> int:
     EMPTY = "  "
-    dist = 1
-    while dist < height - getRow(loc, width):
+    dist = 0
+    while getRow(loc, width) + dist < height:
         if wordTable[loc + dist * width] != EMPTY:
             break
         dist += 1
@@ -42,21 +42,22 @@ def getRandChar(wordData: dict) -> str:
 
 
 # get a random word with startChar, with length less or equal than distance
-# if randWord is not single char, return randWord start with 2nd letter
 def getRandWord(wordData: dict, startChar: str, dist: int) -> str:
-    # return random character if no word start with startChar
-    if startChar not in wordData.keys():
+    try:
+        lenList = list(wordData[startChar].keys())
+        availLen = list(len for len in lenList if int(len) <= dist)
+        randLen = choice(availLen)
+        randWord = choice(wordData[startChar][randLen].split(","))
+    except:
+        randWord = getRandChar(wordData)
+    # return random character if no word start with startChar or available in dist
+    if startChar not in wordData.keys() or not availLen:
         return getRandChar(wordData)
 
-    # return random character if unable to put a word
-    randLenCandidates = list(wordData[startChar].keys())
-    if dist < int(randLenCandidates[0]):
-        return getRandChar(wordData)
-
-    randLen = choice(randLenCandidates)
+    randLen = choice(availLen)
     randWord = choice(wordData[startChar][randLen].split(","))
 
-    return randWord[1:]
+    return randWord
 
 
 # initialize word table with size(height * width)
@@ -67,7 +68,6 @@ def getWordTable(wordData: dict, wordTable: dict,
     # CAUTION: returning word starts with 2nd letter if word isn't single char
     def _put(wordTable: dict, word: str, loc: int, dir: int,
              updateInfo=None) -> None:
-        EMPTY = "  "
         for i in range(len(word)):
             locTo = loc + i * dir
             # when updating word table
@@ -76,7 +76,7 @@ def getWordTable(wordData: dict, wordTable: dict,
                 charBelow = 0
                 while wordTable[locTo + charBelow * width] == "  ":
                     charBelow += 1
-                locFrom = locTo - (charRow * dir + charBelow) * width
+                locFrom = locTo - (charRow + charBelow) * width
                 updateInfo.append([locFrom, locTo, word[i]])
             wordTable[locTo] = word[i]
         # print(f"put word: {word}")
@@ -87,43 +87,29 @@ def getWordTable(wordData: dict, wordTable: dict,
     FIRST = 1
     loc = 0
 
-    # set remaining wordTable
+    # set words in wordTable
     while loc < SIZE:
-        # basically, continue if cell filled
+        # skip if cell filled
         if wordTable[loc] != EMPTY:
             loc += 1
             continue
-
-        # distance to rightwards or downwards
-        rightDist = getRightDist(wordTable, loc, height, width)
-        downDist = getDownDist(wordTable, loc, width, height)
-
-        # set the first word
-        if loc < FIRST:
-            randChar = getRandChar(wordData)
-            _put(wordTable, randChar, loc, RIGHT, updateInfo)
-            loc += FIRST
-            continue
-
-        # 2. put in totally random direction
-        if rightDist == 0:
-            wordDir = DOWN
-        if downDist == 0:
-            wordDir = RIGHT
-        else:
-            wordDir = choice([RIGHT, DOWN])
-
-        # put random word in table
-        startChar = wordTable[loc - wordDir] \
-            if getRow(loc, width) >= FIRST else getRandChar(wordData)
-        dist = rightDist if wordDir == RIGHT else downDist
-        if (wordDir == RIGHT and getCol(loc, width) < FIRST) \
-            or (wordDir == DOWN and getRow(loc, width) < FIRST):
+        # set random direction
+        dir = choice([RIGHT, DOWN])
+        # calculate distance to wall or filled cell
+        dist = getRightDist(wordTable, loc, height, width) if dir == RIGHT \
+            else getDownDist(wordTable, loc, height, width)
+        # start with random character if rightwards at left or downwards at top
+        if (dir == RIGHT and getCol(loc, width) < FIRST) \
+            or (dir == DOWN and getRow(loc, width) < FIRST):
             startChar = getRandChar(wordData)
-            randWord = startChar + getRandWord(wordData, startChar, dist)
-        else:
             randWord = getRandWord(wordData, startChar, dist)
-        _put(wordTable, randWord, loc, wordDir, updateInfo)
+        # follow-up
+        else:
+            startChar = wordTable[loc - 1]
+            randWord = getRandWord(wordData, startChar, dist)
+            if len(randWord) >= 2:
+                randWord = randWord[1:]
+        _put(wordTable, randWord, loc, dir, updateInfo)
         loc += 1
 
     if updateInfo is None:
