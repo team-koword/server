@@ -1,71 +1,169 @@
-from wordTable import *
+import os
+import json
+from random import choice
+from gameFunctions import *
 
-# for TEST
-# open file -> get dataBase
-# TODO: convert file to DB
-filePath = "./ko_word.json"
-with open(filePath, "r", encoding="utf8") as file:
-    dataBase = json.load(file)
-HEIGHT, WIDTH = 7, 7
-height, width = HEIGHT, WIDTH
+
+## global variables
+# get dataBase
+def getDataBase(fileName: str) -> dict:
+    import os
+    import json
+    dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+    with open(dirPath + fileName, "r", encoding="utf8") as file:
+        dataBase = json.load(file)
+    return dataBase
+
+
+# print wordTable in Terminal
+def printWordTable(wordTable: dict, height: int, width: int) -> None:
+    for col in range(height):
+        for row in range(width):
+            loc = col * width + row
+            cell = wordTable[loc]
+            # print location
+            cell = str(loc).zfill(2) + cell
+            print(cell, end=" ")
+        print()
+    print()
+
+
+# declare and initialize variables
+height, width = 0, 0
+wordData = dict()
 wordTable = dict()
-answerTable = dict()
-answerList = list()
+wordMap = dict()
+# ML alternative
+relData = dict()
 
 
-# test wordTable with words in dataBase
-wordTable = initWordTable(dataBase, height, width)
-print("\ninit table")
-printWordTable(wordTable, height, width)
+height, width = 10, 10
+SIZE = height * width
+EMPTY = "  "
+wordData = getDataBase("wordDB.json")
 
-answerTable = setAnswerTable(dataBase, wordTable, answerTable, height, width)
-print("\nanswerTable")
-print(answerTable)
-
-answerList = list(answerTable.keys())
-print("\nanswerList")
-print(len(answerList), answerList)
-
-# answer = "없음"
-# moveInfo, wordTable, answerTable, answerList = checkAnswer("없음", dataBase, wordTable, answerTable, answerList, height, width)
-# print(f"\ncheckAnswer({answer})")
-# print("\nmoveInfo")
-# print(moveInfo)
-# print("\nupdated wordTable")
-# printWordTable(wordTable, height, width)
-# print("\nanswerTable")
-# print(answerTable)
-# print("\nanswerList")
-# print(len(answerList), answerList)
-
-# answer = answerList[0]  # horizontal
-answer = answerList[-1] # vertical
-moveInfo, wordTable, answerTable, answerList = checkAnswer(
-    answer, dataBase, wordTable, answerTable, answerList, height, width)
-print(f"\ncheckAnswer({answer})")
-print("\nmoveInfo")
-print(moveInfo)
-print("\nupdated wordTable")
-printWordTable(wordTable, height, width)
-# print(wordTable)
-print("\nanswerTable")
-print(answerTable)
-print("\nanswerList")
-print(len(answerList), answerList)
-print("\nrandAnswer")
+# initialize wordTable with empty cell
+for i in range(SIZE):
+    wordTable[i] = EMPTY
 
 
-# # test with sample wordTable
-# sampleWordTable = {0: "가", 1: "방", 2: "송", 3: "국", 4: "회", 5: "의", 6: "원", 7: "요", 8: "구", 9: "르", 10: "트", 11: "로", 12: "트", 13: "림", 14: "리", 15: "정", 16: "신", 17: "병", 18: "원", 19: "럭", 20: "각", 21: "사", 22: "진", 23: "관",
-#                    24: "상", 25: "어", 26: "려", 27: "움", 28: "랑", 29: "시", 30: "기", 31: "상", 32: "조", 33: "력", 34: "자", 35: "바", 36: "황", 37: "하", 38: "루", 39: "살", 40: "이", 41: "율", 42: "퀴", 43: "제", 44: "초", 45: "제", 46: "인", 47: "간", 48: "성"}
+# ----------------------------------------
 
-# print("\nsampleWordTable")
-# printWordTable(sampleWordTable, height, width)
 
-# answerTable = setAnswerTable(dataBase, wordTable, answerTable, height, width)
-# print("\nanswerTable from sampleWordTable")
-# print(answerTable)
+# 1. initialize word table with size(height * width)
+# and also use to update word table
+def init():
+    global wordData, wordTable, height, width
 
-# answerList = list(answerTable.keys())
-# print("\nanswerList")
-# print(len(answerList), answerList)
+    wordTable = getWordTable(wordData, wordTable, height, width)
+    printWordTable(wordTable, height, width)
+    print()
+    
+    return wordTable
+
+
+# 2. find words in map
+# rightCnt, downCnt for check
+def mapping():
+    global wordData, wordTable, wordMap, height, width
+
+    wordTable = init()
+
+    # wordMap, rightCnt, downCnt = getWordMap(wordData, wordTable, wordMap, height, width)
+    # print(f"total: {rightCnt + downCnt}, diff: {rightCnt - downCnt}")
+    wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
+    print(f"wordMap: {wordMap}")
+    print()
+
+    wordList = list(wordMap.keys())
+    print(f"wordList: {len(wordList)} {wordList}")
+    print()
+    
+    return wordTable, wordMap, wordList
+
+
+# 3. check answer, update
+def check():
+    global wordData, wordTable, wordMap, height, width
+
+    wordTable, wordMap, wordList = mapping()
+    relData = getDataBase("ML.json")
+
+    answer = choice(wordList)
+    print("answer")
+    print(answer)
+    print()
+
+    if answer in wordList:
+        removeWords = [answer]
+        print("answer in wordList!")
+    else:
+        if answer in relData:
+            removeWords = relData[answer].split(",")
+            if removeWords == [""]:
+                removeWords = []
+        else:
+            removeWords = []
+    print(f"removeWords: {removeWords}")
+    for removeWord in removeWords:
+        print(f"{removeWord}: {wordMap[removeWord]}")
+    print()
+
+    wordTable, wordMap, updateInfo \
+        = updateWordTable(wordData, wordTable, wordMap, removeWords, height, width)
+    print("wordTable")
+    printWordTable(wordTable, height, width)
+    print()
+
+    print("updateInfo")
+    print(updateInfo)
+    print()
+
+    print("wordMap")
+    print(wordMap)
+    print()
+
+    wordList = list(wordMap.keys())
+    print(f"wordList: {len(wordList)} {wordList}")
+    print()
+
+
+# 4. input
+def play():
+    global wordData, wordTable, wordMap, height, width
+
+    wordTable, wordMap, wordList = mapping()
+    relData = getDataBase("ML.json")
+
+    while True:
+        answer = input()
+        print(f"answer: {answer}")
+        print()
+
+        if answer in wordList:
+            removeWords = [answer]
+            print("answer in wordList!")
+        else:
+            if answer in relData:
+                removeWords = relData[answer].split(",")
+                if removeWords == [""]:
+                    removeWords = []
+            else:
+                removeWords = []
+        print(f"removeWords: {removeWords}")
+        for removeWord in removeWords:
+            print(f"{removeWord}: {wordMap[removeWord]}")
+        print()
+
+        wordTable, wordMap, updateInfo \
+            = updateWordTable(wordData, wordTable, wordMap, removeWords, height, width)
+        print(f"updateInfo: {updateInfo}")
+        print()
+        printWordTable(wordTable, height, width)
+        print(f"wordMap: {wordMap}")
+        print()
+        wordList = list(wordMap.keys())
+        print(f"wordList: {len(wordList)} {wordList}")
+        print()
+
+init()

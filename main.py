@@ -1,75 +1,101 @@
-import json
-from wordTable import *
-# functions in wordTable
-# def initWordTable(dataBase: dict, height: int, width: int) -> dict:
-# 	return wordTable
-
-# def setAnswerTable(dataBase: dict, wordTable: dict, answerTable: dict, height: int, width: int,
-#                    rowFrom: int = None, rowTo: int = None, colFrom: int = None, colTo: int = None) -> dict:
-# 	return answerTable
-
-# def checkAnswer(answer: str, dataBase: dict, wordTable: dict, answerTable: dict, answerList: dict,
-#                     height: int, width: int) -> dict:
-# 	return moveInfo, wordTable, answerTable, answerList
-
-
-from typing import Union
-
+## imports
+# FastAPI
 from fastapi import FastAPI
-from pydantic import BaseModel
-
-
 app = FastAPI()
 
-filePath = "./ko_word.json"
-with open(filePath, 'r', encoding="utf8") as file:
-    dataBase = json.load(file)
 
+# CORS
+from fastapi.middleware.cors import CORSMiddleware
+# origins = ["*"]
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# game functions module
+from gameFunctions import *
+# getWordTable
+# getWordMap
+# updateWordTable
+
+
+
+
+## global variables
+# get dataBase
+def getDataBase(fileName: str) -> dict:
+    import os
+    import json
+    dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+    with open(dirPath + fileName, "r", encoding="utf8") as file:
+        dataBase = json.load(file)
+    return dataBase
+
+
+# declare and initialize variables
 height, width = 0, 0
+wordData = dict()
 wordTable = dict()
-answerTable = dict()
-answerList = list()
+wordMap = dict()
+# ML alternative
+relData = dict()
 
 
+
+
+## response for request
+# initialize game with new word table in size(height * width)
 @app.get("/init/{size}")
-def init(size: int):
-    global dataBase, wordTable, answerTable, answerList, height, width
+def init(size: int) -> dict:
+    global wordData, wordTable, wordMap, height, width
+    
     height, width = size, size
+    wordData = getDataBase("wordDB.json")
 
-    wordTable = initWordTable(dataBase, height, width)
-    answerTable = setAnswerTable(dataBase, wordTable, answerTable, height, width)
-    answerList = list(answerTable.keys())
+    # initialize wordTable with blank(" ")
+    for i in range(size):
+        wordTable[i] = " "
+
+    wordTable = getWordTable(wordData, wordTable, height, width)
+    wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
 
     return wordTable
 
 
+# check if answer word or relative words in word table
+# if answer in word table, remove only the answer(includes duplicated)
 @app.get("/check/{answer}")
-def check(answer: str):
-    global dataBase, wordTable, answerTable, answerList, height, width
+def check(answer: str) -> list:
+    global wordData, wordTable, wordMap, updateInfo, height, width
 
-    moveInfo, wordTable, answerTable, answerList = checkAnswer(answer, dataBase, wordTable, answerTable, answerList, height, width)
+    # if the answer in word table, remove only the word(includes duplicated)
+    wordList = list(wordMap.keys())
+    if answer in wordList:
+        removeWords = [answer]
+    # check if relative words in word table
+    else:
+        # get relative words
+        # TODO: substitute to get from ML directly
+        relData = getDataBase("ML.json")
+        # relative words in word table
+        if answer in relData:
+            removeWords = relData[answer].split(",")
+            # no relative word in word table, return directly
+            if removeWords == [""]:
+                return []
+        # no relative word in word table, return directly
+        else:
+            return []
 
-    return moveInfo
+    wordTable, wordMap, updateInfo \
+        = updateWordTable(wordData, wordTable, wordMap, removeWords, height, width)
 
-
-# # ------------------------- sample -------------------------
-# class Item(BaseModel):
-#     name: str
-#     price: float
-#     is_offer: Union[bool, None] = None
-
-
-# @app.get("/")
-# def read_root():
-#     return {"Hello": "World"}
-
-
-# @app.get("/items/{item_id}")
-# def read_item(item_id: int, q: Union[str, None] = None):
-#     return {"item_id": item_id, "q": q}
-
-
-# @app.put("/items/{item_id}")
-# def update_item(item_id: int, item: Item):
-#     return {"item_name": item.name, "item_id": item_id}
-# # ------------------------- sample -------------------------
+    return updateInfo
