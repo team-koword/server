@@ -63,17 +63,17 @@ def create(room_name: int) -> None:
     return
 
 
-# # request body: get method cannot have body
-# class RoomData(BaseModel):
-#     size: int
-#     users: list
+# request body: get method cannot have body
+class RoomData(BaseModel):
+    size: int
+    users: list
 
 # initialize game with new word table in size(height * width)
 # TODO: modify url or to websocket
-@app.get("/{roomId}/{size}")
-def init(size: int, userList: Optional[list] = None) -> dict:
+@app.post("/init")
+def init(init: RoomData) -> dict:
     global wordData, wordTable, wordMap, height, width, users
-    height, width = size, size
+    height, width = init.size, init.size
     SIZE = height * width
     EMPTY, START = "  ", 0
     wordData = getDataBase("wordDB.json")
@@ -83,14 +83,36 @@ def init(size: int, userList: Optional[list] = None) -> dict:
         wordTable[i] = EMPTY
 
     # initialize userData with score 0
-    if userList:
-        for user in userList:
-            users[user] = START
+    for user in init.users:
+        users[user] = START
 
     wordTable = getWordTable(wordData, wordTable, height, width)
     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
 
     return wordTable
+
+# # initialize game with new word table in size(height * width)
+# # TODO: modify url or to websocket
+# @app.get("/{roomId}/{size}")
+# def init(size: int, userList: list = Query(...)) -> dict:
+#     global wordData, wordTable, wordMap, height, width, users
+#     height, width = size, size
+#     SIZE = height * width
+#     EMPTY, START = "  ", 0
+#     wordData = getDataBase("wordDB.json")
+
+#     # initialize wordTable with empty cell
+#     for i in range(SIZE):
+#         wordTable[i] = EMPTY
+
+#     # initialize userData with score 0
+#     for user in userList:
+#         users[user] = START
+
+#     wordTable = getWordTable(wordData, wordTable, height, width)
+#     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
+
+#     return wordTable
 
 
 # check if answer word or relative words in word table
