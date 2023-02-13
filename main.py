@@ -1,16 +1,24 @@
 ## imports
+# request
+from typing import Optional, List
+from pydantic import BaseModel
 # FastAPI
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 app = FastAPI()
+# game functions module
+from gameFunctions import *
 
+
+## origins
+#allow
+origins = [
+    "*",
+    # "http://localhost",
+    # "http://localhost:8080",
+]
 
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
-# origins = ["*"]
-origins = [
-    "http://localhost",
-    "http://localhost:8080",
-]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,16 +28,7 @@ app.add_middleware(
 )
 
 
-# game functions module
-from gameFunctions import *
-# getWordTable
-# getWordMap
-# updateWordTable
-
-
-
-
-## global variables
+## main functions
 # get dataBase
 def getDataBase(fileName: str) -> dict:
     import os
@@ -40,29 +39,53 @@ def getDataBase(fileName: str) -> dict:
     return dataBase
 
 
+## global variables
 # declare and initialize variables
-height, width = 0, 0
+roomId:int = 0
 wordData = dict()
 wordTable = dict()
 wordMap = dict()
+height:int = 0
+width:int = 0
 # ML alternative
 relData = dict()
+# user data {user: score}
+users = dict()
 
 
+## response and request
+# get room number
+@app.get("/ws/{room_name}")
+def create(room_name: int) -> None:
+    global roomId
+
+    roomId = room_name
+    return
 
 
-## response for request
+# # request body: get method cannot have body
+# class RoomData(BaseModel):
+#     size: int
+#     users: list
+
 # initialize game with new word table in size(height * width)
-@app.get("/init/{size}")
-def init(size: int) -> dict:
-    global wordData, wordTable, wordMap, height, width
-    
+# TODO: modify url or to websocket
+@app.get("/{roomId}/{size}")
+def init(size: int, userList: Optional[list] = None) -> dict:
+    global wordData, wordTable, wordMap, height, width, users
     height, width = size, size
+    SIZE = height * width
+    EMPTY, START = "  ", 0
     wordData = getDataBase("wordDB.json")
 
-    # initialize wordTable with blank(" ")
-    for i in range(size):
-        wordTable[i] = " "
+    # initialize wordTable with empty cell
+    for i in range(SIZE):
+        wordTable[i] = EMPTY
+
+    # initialize userData with score 0
+    if userList:
+        for user in userList:
+            users[user] = START
 
     wordTable = getWordTable(wordData, wordTable, height, width)
     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
@@ -71,31 +94,36 @@ def init(size: int) -> dict:
 
 
 # check if answer word or relative words in word table
+# request and response body
+class Check(BaseModel):
+    user: int
+    answer: str
+    removeWords: Optional[list] = None
+    moveInfo: Optional[list] = None
+    increment: Optional[int] = None
+
 # if answer in word table, remove only the answer(includes duplicated)
-@app.get("/check/{answer}")
-def check(answer: str) -> list:
-    global wordData, wordTable, wordMap, updateInfo, height, width
+# TODO: modify url or to websocket
+@app.post("/"+str(roomId))
+def check(checkInfo: Check) -> Check:
+    global wordData, wordTable, wordMap, moveInfo, height, width, users
 
     # if the answer in word table, remove only the word(includes duplicated)
+    answer = checkInfo.answer
     wordList = list(wordMap.keys())
     if answer in wordList:
-        removeWords = [answer]
+        checkInfo.removeWords = list(answer)
     # check if relative words in word table
     else:
         # get relative words
         # TODO: substitute to get from ML directly
         relData = getDataBase("ML.json")
         # relative words in word table
-        if answer in relData:
-            removeWords = relData[answer].split(",")
-            # no relative word in word table, return directly
-            if removeWords == [""]:
-                return []
-        # no relative word in word table, return directly
-        else:
-            return []
+        relWords = relData.get(answer, "").split(",")
+        checkInfo.removeWords = list(word for word in relWords if word in wordList and word)
+    # update
+    wordTable, wordMap, checkInfo.moveInfo \
+        = updateWordTable(wordData, wordTable, wordMap, checkInfo.removeWords, height, width)
+    checkInfo.increment = len(checkInfo.removeWords)
 
-    wordTable, wordMap, updateInfo \
-        = updateWordTable(wordData, wordTable, wordMap, removeWords, height, width)
-
-    return updateInfo
+    return checkInfo

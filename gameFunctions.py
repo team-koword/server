@@ -43,43 +43,37 @@ def getRandChar(wordData: dict) -> str:
 
 # get a random word with startChar, with length less or equal than distance
 def getRandWord(wordData: dict, startChar: str, dist: int) -> str:
-    try:
-        lenList = list(wordData[startChar].keys())
-        availLen = list(len for len in lenList if int(len) <= dist)
-        randLen = choice(availLen)
-        randWord = choice(wordData[startChar][randLen].split(","))
-    except:
-        randWord = getRandChar(wordData)
-    # return random character if no word start with startChar or available in dist
-    if startChar not in wordData.keys() or not availLen:
+    len_list = wordData.get(startChar, {}).keys()
+    avail_len = [len for len in len_list if int(len) <= dist]
+
+    if not len_list or not avail_len:
         return getRandChar(wordData)
 
-    randLen = choice(availLen)
-    randWord = choice(wordData[startChar][randLen].split(","))
+    rand_len = choice(avail_len)
+    rand_word = choice(wordData[startChar][rand_len].split(","))
+    return rand_word
 
-    return randWord
 
 
 # initialize word table with size(height * width)
 # and also use to update word table
 def getWordTable(wordData: dict, wordTable: dict,
-                 height: int, width: int, updateInfo=None) -> dict:
+                 height: int, width: int, moveInfo=None) -> dict:
     # put word at word table start from loc in the dir
     # CAUTION: returning word starts with 2nd letter if word isn't single char
     def _put(wordTable: dict, word: str, loc: int, dir: int,
-             updateInfo=None) -> None:
-        for i in range(len(word)):
+             moveInfo=None) -> None:
+        for i, char in enumerate(word):
             locTo = loc + i * dir
             # when updating word table
-            if updateInfo:
+            if moveInfo:
                 charRow = getRow(locTo, width)
                 charBelow = 0
                 while wordTable[locTo + charBelow * width] == "  ":
                     charBelow += 1
                 locFrom = locTo - (charRow + charBelow) * width
-                updateInfo.append([locFrom, locTo, word[i]])
-            wordTable[locTo] = word[i]
-        # print(f"put word: {word}")
+                moveInfo.append([locFrom, locTo, char])
+            wordTable[locTo] = char
 
     SIZE = height * width
     EMPTY = "  "
@@ -106,16 +100,16 @@ def getWordTable(wordData: dict, wordTable: dict,
         # follow-up
         else:
             startChar = wordTable[loc - 1]
-            randWord = getRandWord(wordData, startChar, dist)
+            randWord = getRandWord(wordData, startChar, dist + 1)
             if len(randWord) >= 2:
                 randWord = randWord[1:]
-        _put(wordTable, randWord, loc, dir, updateInfo)
+        _put(wordTable, randWord, loc, dir, moveInfo)
         loc += 1
 
-    if updateInfo is None:
+    if moveInfo is None:
         return wordTable
     else:
-        return wordTable, updateInfo
+        return wordTable, moveInfo
 
 
 # get words and their locations in word table
@@ -176,7 +170,7 @@ def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
 def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
                     removeWords: list, height: int, width: int):
     # remove the answer(s) or relative words
-    def _remove(wordTable: dict, wordMap: dict, updateInfo: list,
+    def _remove(wordTable: dict, wordMap: dict, moveInfo: list,
                 removeWords: list, height: int, width: int) -> list:
         BREAK = height * width
         EMPTY = "  "
@@ -186,42 +180,46 @@ def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
                 for locs in removeLocs:
                     for loc in locs:
                         if wordTable[loc] != EMPTY:
-                            updateInfo.append([loc, BREAK, wordTable[loc]])
+                            moveInfo.append([loc, BREAK, wordTable[loc]])
                             wordTable[loc] = EMPTY
-        return updateInfo
+        return moveInfo
     # cells above empty cells fall
-    def _fall(wordTable: dict, updateInfo: list) -> list:
+    def _fall(wordTable: dict, moveInfo: list) -> list:
         SIZE = height * width
         EMPTY = "  "
         for loc in range(SIZE - 1, width - 1, -1):
-            if wordTable[loc] == EMPTY:
-                locFrom = loc - width
-                while locFrom >= 0:
-                    if wordTable[locFrom] != EMPTY:
-                        updateInfo.append([locFrom, locFrom + width, wordTable[locFrom]])
-                        wordTable[loc] = wordTable[locFrom]
-                        wordTable[locFrom] = EMPTY
-                        break
-                    locFrom -= width
-        return updateInfo
+            if not wordTable[loc] == EMPTY:
+                continue
+            locFrom = loc - width
+            while locFrom >= 0:
+                if wordTable[locFrom] != EMPTY:
+                    moveInfo.append([locFrom, locFrom + width, wordTable[locFrom]])
+                    wordTable[loc] = wordTable[locFrom]
+                    wordTable[locFrom] = EMPTY
+                    break
+                locFrom -= width
+        return moveInfo
     # add new words in empty cells
-    def _add(wordData: dict, wordTable: dict, updateInfo: list,
+    def _add(wordData: dict, wordTable: dict, moveInfo: list,
              height: int, width: int):
-        wordTable, updateInfo = \
-            getWordTable(wordData, wordTable, height, width, updateInfo)
-        return wordTable, updateInfo
+        wordTable, moveInfo = \
+            getWordTable(wordData, wordTable, height, width, moveInfo)
+        return wordTable, moveInfo
 
-    updateInfo = list()
+    moveInfo = list()
+    
+    if not removeWords:
+        return wordTable, wordMap, moveInfo
 
     # remove
-    updateInfo = _remove(wordTable, wordMap, updateInfo,
+    moveInfo = _remove(wordTable, wordMap, moveInfo,
                          removeWords, height, width)
     # fall
-    updateInfo = _fall(wordTable, updateInfo)
+    moveInfo = _fall(wordTable, moveInfo)
     # add
-    wordTable, updateInfo = _add(
-        wordData, wordTable, updateInfo, height, width)
+    wordTable, moveInfo = _add(
+        wordData, wordTable, moveInfo, height, width)
     # update wordMap
     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
 
-    return wordTable, wordMap, updateInfo
+    return wordTable, wordMap, moveInfo
