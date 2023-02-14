@@ -1,21 +1,59 @@
-## imports
-# request
-from typing import Optional, List
-from pydantic import BaseModel
-# FastAPI
-from fastapi import FastAPI, Query
-app = FastAPI()
+## words data
+# dataBase
+import os
+import json
+dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+fileName = './wordDB.json'
+with open(dirPath + fileName, "r", encoding="utf8") as file:
+    dataBase = json.load(file)
+
+
+# vector similarity model
+import fasttext
+simModel = fasttext.load_model('./model.bin')
+
+
+# modeling functions module
+from modeling import *
+
+
+
+
+## game data
+# game variables
+wordData = dict()   # {char: {len: "word1,word2,...", ...}, ...}
+wordTable = dict()  # {loc: char, ...}
+wordMap = dict()    # {word: [loc, ...], ...}
+height:int = 0
+width:int = 0
+roomId:int = 0
+users = dict()      # {user: score, ...}
+
+
 # game functions module
 from gameFunctions import *
 
 
-## origins
-#allow
-origins = [
-    "*",
-    # "http://localhost",
-    # "http://localhost:8080",
-]
+# print wordTable in Terminal
+def printWordTable(wordTable: dict, height: int, width: int) -> None:
+    for col in range(height):
+        for row in range(width):
+            loc = col * width + row
+            cell = wordTable[loc]
+            # print location
+            cell = str(loc).zfill(3) + cell
+            print(cell, end=" ")
+        print()
+    print()
+
+
+
+
+## response and request
+# FastAPI
+from fastapi import FastAPI, Query
+app = FastAPI()
+
 
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,38 +66,25 @@ app.add_middleware(
 )
 
 
-## main functions
-# get dataBase
-def getDataBase(fileName: str) -> dict:
-    import os
-    import json
-    dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
-    with open(dirPath + fileName, "r", encoding="utf8") as file:
-        dataBase = json.load(file)
-    return dataBase
+# origins
+origins = [
+    "*",
+    # "http://localhost",
+    # "http://localhost:8080",
+]
 
 
-## global variables
-# declare and initialize variables
-roomId:int = 0
-wordData = dict()
-wordTable = dict()
-wordMap = dict()
-height:int = 0
-width:int = 0
-# ML alternative
-relData = dict()
-# user data {user: score}
-users = dict()
+# request
+from typing import Optional, List
+from pydantic import BaseModel
 
 
-## response and request
 # get room number
-@app.get("/ws/{room_name}")
-def create(room_name: int) -> None:
+@app.get("/ws/{room}")
+def create(room: int) -> None:
     global roomId
 
-    roomId = room_name
+    roomId = room
     return
 
 
@@ -67,16 +92,15 @@ def create(room_name: int) -> None:
 class RoomData(BaseModel):
     size: int
     users: list
-
 # initialize game with new word table in size(height * width)
-# TODO: modify url or to websocket
+# TODO: modify url
 @app.post("/init")
 def init(init: RoomData) -> dict:
     global wordData, wordTable, wordMap, height, width, users
     height, width = init.size, init.size
     SIZE = height * width
     EMPTY, START = "  ", 0
-    wordData = getDataBase("wordDB.json")
+    wordData = dataBase
 
     # initialize wordTable with empty cell
     for i in range(SIZE):
@@ -88,64 +112,46 @@ def init(init: RoomData) -> dict:
 
     wordTable = getWordTable(wordData, wordTable, height, width)
     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
+    
+    printWordTable(wordTable, height, width)
+    print(len(list(wordMap.keys())))
 
     return wordTable
 
-# # initialize game with new word table in size(height * width)
-# # TODO: modify url or to websocket
-# @app.get("/{roomId}/{size}")
-# def init(size: int, userList: list = Query(...)) -> dict:
-#     global wordData, wordTable, wordMap, height, width, users
-#     height, width = size, size
-#     SIZE = height * width
-#     EMPTY, START = "  ", 0
-#     wordData = getDataBase("wordDB.json")
 
-#     # initialize wordTable with empty cell
-#     for i in range(SIZE):
-#         wordTable[i] = EMPTY
-
-#     # initialize userData with score 0
-#     for user in userList:
-#         users[user] = START
-
-#     wordTable = getWordTable(wordData, wordTable, height, width)
-#     wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
-
-#     return wordTable
-
-
-# check if answer word or relative words in word table
+# check if answer word or similar words in word table
 # request and response body
 class Check(BaseModel):
-    user: int
+    user: str
     answer: str
     removeWords: Optional[list] = None
+    mostSim: Optional[int] = None
     moveInfo: Optional[list] = None
     increment: Optional[int] = None
-
 # if answer in word table, remove only the answer(includes duplicated)
-# TODO: modify url or to websocket
-@app.post("/"+str(roomId))
+# TODO: modify url
+@app.post("/check")
 def check(checkInfo: Check) -> Check:
     global wordData, wordTable, wordMap, moveInfo, height, width, users
 
-    # if the answer in word table, remove only the word(includes duplicated)
     answer = checkInfo.answer
     wordList = list(wordMap.keys())
+    # if the answer in word table, remove only the word(includes duplicated)
     if answer in wordList:
-        checkInfo.removeWords = list(answer)
-    # check if relative words in word table
+        checkInfo.removeWords = [answer]
+        checkInfo.mostSim = 1
+    # get similar words in word table
     else:
-        # get relative words
-        # TODO: substitute to get from ML directly
-        relData = getDataBase("ML.json")
-        # relative words in word table
-        relWords = relData.get(answer, "").split(",")
-        checkInfo.removeWords = list(word for word in relWords if word in wordList and word)
+        checkInfo.removeWords, checkInfo.mostSim \
+            = getSimWords(simModel, wordList, answer)
     # update
     wordTable, wordMap, checkInfo.moveInfo \
-        = updateWordTable(wordData, wordTable, wordMap, checkInfo.removeWords, height, width)
+        = updateWordTable(wordData, wordTable, wordMap, 
+                          checkInfo.removeWords, height, width)
     checkInfo.increment = len(checkInfo.removeWords)
+
+    print(len(checkInfo.removeWords), checkInfo.mostSim)
+    printWordTable(wordTable, height, width)
+    print(len(list(wordMap.keys())))
 
     return checkInfo

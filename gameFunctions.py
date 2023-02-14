@@ -1,3 +1,4 @@
+from typing import Optional, Union, Tuple
 from random import choice
 
 
@@ -55,10 +56,12 @@ def getRandWord(wordData: dict, startChar: str, dist: int) -> str:
 
 
 
+
 # initialize word table with size(height * width)
 # and also use to update word table
 def getWordTable(wordData: dict, wordTable: dict,
-                 height: int, width: int, moveInfo=None) -> dict:
+                 height: int, width: int, moveInfo: Optional[list] = None) \
+                     -> Union[dict, Tuple[dict, list]]:
     # put word at word table start from loc in the dir
     # CAUTION: returning word starts with 2nd letter if word isn't single char
     def _put(wordTable: dict, word: str, loc: int, dir: int,
@@ -114,7 +117,7 @@ def getWordTable(wordData: dict, wordTable: dict,
 
 # get words and their locations in word table
 def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
-               height: int, width: int):
+               height: int, width: int) -> dict:
     # get word in row
     def _rightwards(wordData: dict, wordTable: dict, wordMap: dict,
                     height, width, row, rightCnt) -> None:
@@ -165,11 +168,12 @@ def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
     return wordMap
 
 
-# check if the answer or relative words in word table
+# check if the answer or similar words in word table
 # if the answer in word table, remove only the answer(includes duplicated)
 def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
-                    removeWords: list, height: int, width: int):
-    # remove the answer(s) or relative words
+                    removeWords: list, height: int, width: int) \
+                        -> Tuple[dict, dict, list]:
+    # remove the answer(s) or similar words
     def _remove(wordTable: dict, wordMap: dict, moveInfo: list,
                 removeWords: list, height: int, width: int) -> list:
         BREAK = height * width
@@ -201,7 +205,7 @@ def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
         return moveInfo
     # add new words in empty cells
     def _add(wordData: dict, wordTable: dict, moveInfo: list,
-             height: int, width: int):
+             height: int, width: int) -> tuple[dict, list]:
         wordTable, moveInfo = \
             getWordTable(wordData, wordTable, height, width, moveInfo)
         return wordTable, moveInfo
