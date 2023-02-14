@@ -99,7 +99,7 @@ def getWordTable(wordData: dict, wordTable: dict,
             randWord = getRandWord(wordData, startChar, dist)
         # follow-up
         else:
-            startChar = wordTable[loc - 1]
+            startChar = wordTable[loc - dir]
             randWord = getRandWord(wordData, startChar, dist + 1)
             if len(randWord) >= 2:
                 randWord = randWord[1:]
