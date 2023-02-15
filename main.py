@@ -6,7 +6,7 @@ print("SERVER STARTED")
 import time
 
 ## words data
-# get json file
+# get json file function
 def get_json(fileName: str) -> dict:
     import os
     import json
@@ -16,39 +16,34 @@ def get_json(fileName: str) -> dict:
     return json_file
 
 
-# putting data
-print("STARTING SERVER: start to get data to put words")
+# get json data
+print("STARTING SERVER: start to get json data")
 start = time.time()
 
-ToPut = get_json("to_put.json")
+try:
+    ToPut = get_json("to_put.json")
+    ToFind = get_json("to_find.json")
+    print("SUCCESS TO LOAD JSON DATA")
+except Exception as err:
+    print(f"FAIL TO LOAD JSON DATA: {err}")
 
 end = time.time()
-print(f"STARTING SERVER: got data to put words in {end - start} secs")
+print(f"STARTING SERVER: got json data in {end - start} secs")
 
 
-# finding data
-print("STARTING SERVER: start to get data to find words")
-start = time.time()
-
-ToFind = get_json("to_find.json")
-
-end = time.time()
-print(f"STARTING SERVER: got data to find words in {end - start} secs")
-
-
-# vector similarity model
-print("STARTING SERVER: start to load model")
+# get vector similarity model
+print("STARTING SERVER: start to load fasttext model")
 start = time.time()
 
 import fasttext
 try:
     simModel = fasttext.load_model('./model.bin')
-    print("STARTING SERVER: load model SUCCESS")
-except:
-    print("STARTING SERVER: load model FAILED")
+    print("SUCCESS TO LOAD FASTTEXT MODEL")
+except Exception as err:
+    print(f"FAIL TO LOAD FASTTEXT MODEL: {err}")
 
 end = time.time()
-print(f"STARTING SERVER: model loaded in {end - start} secs")
+print(f"STARTING SERVER: fasttext model loaded in {end - start} secs")
 print("SERVER IS READY TO RUN GAMES")
 
 
@@ -64,11 +59,11 @@ from collections import defaultdict
 class RoomData:
     def __init__(self) -> None:
         self.roomId: str = ""
-        self.wordTable = dict() # {loc: char, ...}
+        self.wordTable = defaultdict(lambda: "  ") # {loc: char, ...}
         self.wordMap = defaultdict(list)   # {word: [loc, ...], ...}
         self.height: int = 0
         self.width: int = 0
-        self.users = dict()     # {user: score, ...}
+        self.users = defaultdict(int)     # {user: score, ...}
         self.roundCnt: int = -1
 
 
@@ -87,7 +82,8 @@ def printWordTable(wordTable: dict, height: int, width: int) -> None:
             loc = col * width + row
             cell = wordTable[loc]
             # # print location
-            # cell = str(loc).zfill(3) + cell
+            # DIGIT = len(str(height * width))
+            # cell = str(loc).zfill(DIGIT) + cell
             print(cell, end=" ")
         print()
 
@@ -200,7 +196,7 @@ def check(Check: CheckBody) -> CheckBody:
     # if the answer in word table, remove only the word(includes duplicated)
     if answer in wordList:
         Check.removeWords = [answer]
-        Check.mostSim = 1
+        Check.mostSim = 100
     # get similar words in word table
     else:
         Check.removeWords, Check.mostSim \
@@ -217,7 +213,7 @@ def check(Check: CheckBody) -> CheckBody:
     Check.increment = increment
 
     # renew word table if words in table less than standard count
-    MIN = 40
+    MIN = 30
     # set moveInfo for all cells -> empty
     if len(list(Room.wordMap.keys())) < MIN:
         SIZE = Room.height * Room.width
@@ -231,12 +227,13 @@ def check(Check: CheckBody) -> CheckBody:
                                       Room.height, Room.width)
         Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
                                   Room.height, Room.width)
+        print("GAME REFRESHED: table renewed")
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
     end = time.time()
     print(f"GAME RUNNING: answer checked in {end - start} secs")
-    print(f"GAME RUNNING: roundCnt: {Room.roundCnt}")
+    print(f"GAME RUNNING: round now: {Room.roundCnt}")
     print(f"GAME RUNNING: user: {Check.user}, answer: {Check.answer}")
     print(f"GAME RUNNING: removed words: {len(Check.removeWords)}, mostSim: {Check.mostSim}")
     print(f"GAME RUNNING: words in table: {len(list(Room.wordMap.keys()))}")

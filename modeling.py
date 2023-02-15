@@ -22,7 +22,7 @@ def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
                     decomposed_token += char
         return decomposed_token
     ansVector, cmpVector \
-        = map(lambda x: simModel.get_word_vector(_jamo(x)), [ansWord, cmpWord])
+        = map(lambda word: simModel.get_word_vector(_jamo(word)), [ansWord, cmpWord])
     return cosine_similarity([ansVector], [cmpVector])
 
 
@@ -32,8 +32,10 @@ def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     simData = list()
     simWords = list()
     mostSim = 0
-    MIN = 0.3
-    BASE = 100
+    MIN = 0.5
+    BASE = 200
+    CENT = 100
+    CALIB = 3
 
     # get similar words with similarity greater or equal than MIN
     for word in wordList:
@@ -47,7 +49,8 @@ def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     # limit maximum number of similar words
     simData.sort(key = lambda x: -x[0])
     mostSim = simData[0][0]
-    GET = int(BASE ** mostSim) // 4
-    simWords = list(word[1] for word in simData)[:GET]
+    # CUT = int(BASE ** mostSim) // CALIB
+    CUT = int((mostSim * CENT) // CALIB)
+    simWords = list(word[1] for word in simData)[:CUT]
 
-    return simWords, int(mostSim * 100)
+    return simWords, int(mostSim * CENT)

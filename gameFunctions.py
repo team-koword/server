@@ -17,6 +17,7 @@ def getCol(loc: int, width: int) -> int:
     return loc % width
 
 
+# get rightwards distance to wall or filled cell
 def getRightDist(wordTable: dict, loc: int, height: int, width: int) -> int:
     EMPTY = "  "
     dist = 0
@@ -27,6 +28,7 @@ def getRightDist(wordTable: dict, loc: int, height: int, width: int) -> int:
     return dist
 
 
+# get downwards distance to wall or filled cell
 def getDownDist(wordTable: dict, loc: int, height: int, width: int) -> int:
     EMPTY = "  "
     dist = 0
@@ -70,10 +72,9 @@ def initWordTable(wordTable: dict, height: int, width: int) -> dict:
 
 
 
-# initialize word table with size(height * width)
-# and also use to update word table
+# put random words in empty cells of word table
 def getWordTable(ToPut: dict, wordTable: dict, height: int, width: int, 
-                 moveInfo: Optional[list] = None) -> Union[dict, Tuple[dict, list]]:
+                 moveInfo: Optional[list]=None) -> Union[dict, Tuple[dict, list]]:
     # put word at word table start from loc in the dir
     # CAUTION: returning word starts with 2nd letter if word isn't single char
     def _put(wordTable: dict, word: str, loc: int, dir: int,
