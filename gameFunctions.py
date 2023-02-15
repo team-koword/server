@@ -205,7 +205,7 @@ def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
         return moveInfo
     # add new words in empty cells
     def _add(wordData: dict, wordTable: dict, moveInfo: list,
-             height: int, width: int) -> tuple[dict, list]:
+             height: int, width: int) -> Tuple[dict, list]:
         wordTable, moveInfo = \
             getWordTable(wordData, wordTable, height, width, moveInfo)
         return wordTable, moveInfo

@@ -1,3 +1,4 @@
+from typing import Tuple
 import hgtk
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -27,10 +28,10 @@ def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
 
 # get similar words with similarity greater or equal standard value
 # TODO: modify standard value and length of simWords
-def getSimWords(simModel, wordList: list, answer: str) -> tuple[list, int]:
+def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     simData = list()
     simWords = list()
-    mostSim = 1
+    mostSim = 0
     MIN = 0.3
     BASE = 100
 
@@ -42,11 +43,11 @@ def getSimWords(simModel, wordList: list, answer: str) -> tuple[list, int]:
     
     # no words with minimum similarity
     if not simData:
-        return [], 0
+        return [], mostSim
     # limit maximum number of similar words
     simData.sort(key = lambda x: -x[0])
     mostSim = simData[0][0]
     GET = int(BASE ** mostSim)
     simWords = list(word[1] for word in simData)[:GET]
 
-    return simWords, mostSim
+    return simWords, mostSim * 100
