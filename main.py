@@ -10,14 +10,18 @@ with open(dirPath + fileName, "r", encoding="utf8") as file:
 
 # vector similarity model
 import time
-print("start to get model")
+print("start to load model")
 start = time.time()
 
 import fasttext
-simModel = fasttext.load_model('./model.bin')
+try:
+    simModel = fasttext.load_model('./model.bin')
+    print("load model success")
+except:
+    print("load model failed")
 
 end = time.time()
-print(f"got model in {end - start} secs")
+print(f"model loaded in {end - start} secs")
 
 
 # modeling functions module
@@ -94,71 +98,82 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-# request body
-class InitReq(BaseModel):
+# request and response body
+class InitBody(BaseModel):
+    type: str
     roomId: str
     size: int
     users: list
+    wordTable: Optional[dict] = None
 # initialize game with new word table in size(height * width)
-# TODO: modify url
 @app.post("/init")
-def init(Init: InitReq) -> dict:
-    print("start to init game")
+def init(Init: InitBody) -> dict:
+    print("start to initialize game")
     start = time.time()
 
+    # get room data and initialize
     global Rooms
-    room = Rooms[Init.roomId]
-    room.height, room.width = Init.size, Init.size
-    SIZE = room.height * room.width
+    Room = Rooms[Init.roomId]
+    Room.roundCnt = 0
+    Room.height, Room.width = Init.size, Init.size
+    SIZE = Room.height * Room.width
     EMPTY, START = "  ", 0
-    room.wordData = dataBase
-    room.roundCnt = 0
+    Room.wordData = dataBase
 
     # initialize wordTable with empty cell
     for i in range(SIZE):
-        room.wordTable[i] = EMPTY
+        Room.wordTable[i] = EMPTY
 
     # initialize userData with score 0
     for user in Init.users:
-        room.users[user] = START
+        Room.users[user] = START
 
-    room.wordTable = getWordTable(room.wordData, room.wordTable, 
-                                  room.height, room.width)
-    room.wordMap = getWordMap(room.wordData, room.wordTable, room.wordMap, 
-                              room.height, room.width)
+    # get word table and word map
+    Room.wordTable = getWordTable(Room.wordData, Room.wordTable, 
+                                  Room.height, Room.width)
+    Room.wordMap = getWordMap(Room.wordData, Room.wordTable, Room.wordMap, 
+                              Room.height, Room.width)
 
-    print(f"round start: {room.roundCnt}")
-    printWordTable(room.wordTable, room.height, room.width)
-    print(f"words: {len(list(room.wordMap.keys()))}")
+    # put word table in response body
+    Init.wordTable = Room.wordTable
+
+    # print at terminal(for test)
+    print(f"round start: {Room.roundCnt}")
+    printWordTable(Room.wordTable, Room.height, Room.width)
+    print(f"words: {len(list(Room.wordMap.keys()))}")
 
     end = time.time()
-    print(f"game started in {end - start} secs")
+    print(f"game initialized in {end - start} secs")
 
-    return room.wordTable
+    return Init
 
 
 # check if answer word or similar words in word table
 # request and response body
-class CheckReq(BaseModel):
+class CheckBody(BaseModel):
+    type: str
     roomId: str
     user: str
     answer: str
     removeWords: Optional[list] = None
-    mostSim: Optional[float] = None
+    mostSim: Optional[int] = None
     moveInfo: Optional[list] = None
     increment: Optional[int] = None
 # if answer in word table, remove only the answer(includes duplicated)
-# TODO: modify url
 @app.post("/check")
-def check(Check: CheckReq) -> CheckReq:
-    print("start to check")
+def check(Check: CheckBody) -> CheckBody:
+    print("start to check answer")
     start = time.time()
 
+    # get room data
     global Rooms
-    room = Rooms[Check.roomId]
+    Room = Rooms[Check.roomId]
+    Room.roundCnt += 1
 
+    # get data to check
     answer = Check.answer
-    wordList = list(room.wordMap.keys())
+    wordList = list(Room.wordMap.keys())
+
     # if the answer in word table, remove only the word(includes duplicated)
     if answer in wordList:
         Check.removeWords = [answer]
@@ -167,17 +182,23 @@ def check(Check: CheckReq) -> CheckReq:
     else:
         Check.removeWords, Check.mostSim \
             = getSimWords(simModel, wordList, answer)
-    # update
-    room.wordTable, room.wordMap, Check.moveInfo \
-        = updateWordTable(room.wordData, room.wordTable, room.wordMap, 
-                          Check.removeWords, room.height, room.width)
-    Check.increment = len(Check.removeWords)
 
-    room.roundCnt += 1
-    print(f"roundCnt: {room.roundCnt}")
+    # update room data
+    Room.wordTable, Room.wordMap, Check.moveInfo \
+        = updateWordTable(Room.wordData, Room.wordTable, Room.wordMap, 
+                          Check.removeWords, Room.height, Room.width)
+
+    # update score
+    increment = len(Check.removeWords)
+    Room.users[Check.user] += increment
+    Check.increment = increment
+
+    # print at terminal(for test)
+    print(f"roundCnt: {Room.roundCnt}")
+    print(f"user: {Check.user}, answer: {Check.answer}")
     print(f"removeNums: {len(Check.removeWords)}, mostSim: {Check.mostSim}")
-    printWordTable(room.wordTable, room.height, room.width)
-    print(f"remain words: {len(list(room.wordMap.keys()))}")
+    printWordTable(Room.wordTable, Room.height, Room.width)
+    print(f"remain words: {len(list(Room.wordMap.keys()))}")
 
     end = time.time()
     print(f"answer checked in {end - start} secs")

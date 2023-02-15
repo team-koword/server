@@ -50,4 +50,4 @@ def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     GET = int(BASE ** mostSim)
     simWords = list(word[1] for word in simData)[:GET]
 
-    return simWords, mostSim * 100
+    return simWords, int(mostSim * 100)
