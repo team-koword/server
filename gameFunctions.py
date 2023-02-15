@@ -38,41 +38,57 @@ def getDownDist(wordTable: dict, loc: int, height: int, width: int) -> int:
 
 
 # get a random character
-def getRandChar(wordData: dict) -> str:
-    return choice(list(wordData))
+def getRandChar(ToPut: dict) -> str:
+    return choice(list(ToPut))
 
 
 # get a random word with startChar, with length less or equal than distance
-def getRandWord(wordData: dict, startChar: str, dist: int) -> str:
-    len_list = wordData.get(startChar, {}).keys()
+def getRandWord(ToPut: dict, startChar: str, dist: int) -> str:
+    len_list = ToPut.get(startChar, {}).keys()
     avail_len = [len for len in len_list if int(len) <= dist]
 
     if not len_list or not avail_len:
-        return getRandChar(wordData)
+        return getRandChar(ToPut)
 
     rand_len = choice(avail_len)
-    rand_word = choice(wordData[startChar][rand_len].split(","))
+    rand_word = choice(ToPut[startChar][rand_len].split(","))
     return rand_word
+
+
+
+
+# init word table with empty cells
+def initWordTable(wordTable: dict, height: int, width: int) -> dict:
+    SIZE = height * width
+    EMPTY = "  "
+    
+    for loc in range(SIZE):
+        wordTable[loc] = EMPTY
+    
+    return wordTable
 
 
 
 
 # initialize word table with size(height * width)
 # and also use to update word table
-def getWordTable(wordData: dict, wordTable: dict,
-                 height: int, width: int, moveInfo: Optional[list] = None) \
-                     -> Union[dict, Tuple[dict, list]]:
+def getWordTable(ToPut: dict, wordTable: dict, height: int, width: int, 
+                 moveInfo: Optional[list] = None) -> Union[dict, Tuple[dict, list]]:
     # put word at word table start from loc in the dir
     # CAUTION: returning word starts with 2nd letter if word isn't single char
     def _put(wordTable: dict, word: str, loc: int, dir: int,
-             moveInfo=None) -> None:
+             height: int, width: int, moveInfo=None) -> None:
+        SIZE = height * width
+        EMPTY = "  "
         for i, char in enumerate(word):
             locTo = loc + i * dir
             # when updating word table
             if moveInfo:
                 charRow = getRow(locTo, width)
                 charBelow = 0
-                while wordTable[locTo + charBelow * width] == "  ":
+                # calculate locFrom
+                while locTo + charBelow * width < SIZE \
+                    and wordTable[locTo + charBelow * width] == EMPTY:
                     charBelow += 1
                 locFrom = locTo - (charRow + charBelow) * width
                 moveInfo.append([locFrom, locTo, char])
@@ -98,15 +114,15 @@ def getWordTable(wordData: dict, wordTable: dict,
         # start with random character if rightwards at left or downwards at top
         if (dir == RIGHT and getCol(loc, width) < FIRST) \
             or (dir == DOWN and getRow(loc, width) < FIRST):
-            startChar = getRandChar(wordData)
-            randWord = getRandWord(wordData, startChar, dist)
+            startChar = getRandChar(ToPut)
+            randWord = getRandWord(ToPut, startChar, dist)
         # follow-up
         else:
             startChar = wordTable[loc - dir]
-            randWord = getRandWord(wordData, startChar, dist + 1)
+            randWord = getRandWord(ToPut, startChar, dist + 1)
             if len(randWord) >= 2:
                 randWord = randWord[1:]
-        _put(wordTable, randWord, loc, dir, moveInfo)
+        _put(wordTable, randWord, loc, dir, height, width, moveInfo)
         loc += 1
 
     if moveInfo is None:
@@ -116,10 +132,10 @@ def getWordTable(wordData: dict, wordTable: dict,
 
 
 # get words and their locations in word table
-def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
+def getWordMap(ToFind: dict, wordTable: dict, wordMap: dict,
                height: int, width: int) -> dict:
     # get word in row
-    def _rightwards(wordData: dict, wordTable: dict, wordMap: dict,
+    def _rightwards(ToFind: dict, wordTable: dict, wordMap: dict,
                     height, width, row, rightCnt) -> None:
         for colStart in range(width - 1):
             tempWord = wordTable[getLoc(row, colStart, width)]
@@ -128,40 +144,35 @@ def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
                 tempWord += wordTable[getLoc(row, colEnd, width)]
                 tempLocs.append(getLoc(row, colEnd, width))
                 tempChar, tempLen = tempWord[0], str(len(tempWord))
-                if tempChar in wordData.keys() \
-                    and tempLen in wordData[tempChar].keys() \
-                        and tempWord in wordData[tempChar][tempLen].split(","):
+                if 2 <= int(tempLen) <= 5 and tempChar in ToFind.keys() \
+                    and tempLen in ToFind[tempChar].keys() \
+                        and tempWord in ToFind[tempChar][tempLen]:
                     if not tempWord in wordMap.keys():
                         wordMap[tempWord] = list()
                     wordMap[tempWord].append(tempLocs[:])
                     rightCnt += 1
         return rightCnt
     # get word in column
-    def _downwards(wordData: dict, wordTable: dict, wordMap: dict,
+    def _downwards(ToFind: dict, wordTable: dict, wordMap: dict,
                    height: int, width: int, col: int, downCnt) -> None:
         for rowStart in range(height - 1):
             tempWord = wordTable[getLoc(rowStart, col, width)]
             tempLocs = [getLoc(rowStart, col, width)]
-            for rowEnd in range(rowStart + 1, height):
-                tempWord += wordTable[getLoc(rowEnd, col, width)]
-                tempLocs.append(getLoc(rowEnd, col, width))
-                tempChar, tempLen = tempWord[0], str(len(tempWord))
-                if tempChar in wordData.keys() \
-                    and tempLen in wordData[tempChar].keys() \
-                        and tempWord in wordData[tempChar][tempLen].split(","):
-                    if not tempWord in wordMap.keys():
-                        wordMap[tempWord] = list()
-                    wordMap[tempWord].append(tempLocs[:])
-                    downCnt += 1
+            tempChar, tempLen = tempWord[0], str(len(tempWord))
+            if 2 <= int(tempLen) <= 5 and tempChar in ToFind.keys() \
+                and tempLen in ToFind[tempChar].keys() \
+                    and tempWord in ToFind[tempChar][tempLen]:
+                wordMap[tempWord].append(tempLocs[:])
+                downCnt += 1
         return downCnt
 
     wordMap = dict()
     rightCnt, downCnt = 0, 0
     for row in range(0, height):
-        rightCnt = _rightwards(wordData, wordTable, wordMap,
+        rightCnt = _rightwards(ToFind, wordTable, wordMap,
                                height, width, row, rightCnt)
     for col in range(0, width):
-        downCnt = _downwards(wordData, wordTable, wordMap,
+        downCnt = _downwards(ToFind, wordTable, wordMap,
                              height, width, col, downCnt)
 
     # return wordMap, rightCnt, downCnt
@@ -170,7 +181,7 @@ def getWordMap(wordData: dict, wordTable: dict, wordMap: dict,
 
 # check if the answer or similar words in word table
 # if the answer in word table, remove only the answer(includes duplicated)
-def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
+def updateWordTable(ToPut: dict, ToFind: dict, wordTable: dict, wordMap: dict,
                     removeWords: list, height: int, width: int) \
                         -> Tuple[dict, dict, list]:
     # remove the answer(s) or similar words
@@ -204,10 +215,10 @@ def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
                 locFrom -= width
         return moveInfo
     # add new words in empty cells
-    def _add(wordData: dict, wordTable: dict, moveInfo: list,
+    def _add(ToPut: dict, wordTable: dict, moveInfo: list,
              height: int, width: int) -> Tuple[dict, list]:
         wordTable, moveInfo = \
-            getWordTable(wordData, wordTable, height, width, moveInfo)
+            getWordTable(ToPut, wordTable, height, width, moveInfo)
         return wordTable, moveInfo
 
     moveInfo = list()
@@ -221,9 +232,8 @@ def updateWordTable(wordData: dict, wordTable: dict, wordMap: dict,
     # fall
     moveInfo = _fall(wordTable, moveInfo)
     # add
-    wordTable, moveInfo = _add(
-        wordData, wordTable, moveInfo, height, width)
+    wordTable, moveInfo = _add(ToPut, wordTable, moveInfo, height, width)
     # update wordMap
-    wordMap = getWordMap(wordData, wordTable, wordMap, height, width)
+    wordMap = getWordMap(ToFind, wordTable, wordMap, height, width)
 
     return wordTable, wordMap, moveInfo

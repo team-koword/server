@@ -1,27 +1,55 @@
+## for test
+# start server
+print("SERVER STARTED")
+
+# test run-time
+import time
+
 ## words data
-# dataBase
-import os
-import json
-dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
-fileName = './wordDB.json'
-with open(dirPath + fileName, "r", encoding="utf8") as file:
-    dataBase = json.load(file)
+# get json file
+def get_json(fileName: str) -> dict:
+    import os
+    import json
+    dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+    with open(dirPath + fileName, "r", encoding="utf8") as file:
+        json_file = json.load(file)
+    return json_file
+
+
+# putting data
+print("STARTING SERVER: start to get data to put words")
+start = time.time()
+
+ToPut = get_json("to_put.json")
+
+end = time.time()
+print(f"STARTING SERVER: got data to put words in {end - start} secs")
+
+
+# finding data
+print("STARTING SERVER: start to get data to find words")
+start = time.time()
+
+ToFind = get_json("to_find.json")
+
+end = time.time()
+print(f"STARTING SERVER: got data to find words in {end - start} secs")
 
 
 # vector similarity model
-import time
-print("start to load model")
+print("STARTING SERVER: start to load model")
 start = time.time()
 
 import fasttext
 try:
     simModel = fasttext.load_model('./model.bin')
-    print("load model success")
+    print("STARTING SERVER: load model SUCCESS")
 except:
-    print("load model failed")
+    print("STARTING SERVER: load model FAILED")
 
 end = time.time()
-print(f"model loaded in {end - start} secs")
+print(f"STARTING SERVER: model loaded in {end - start} secs")
+print("SERVER IS READY TO RUN GAMES")
 
 
 # modeling functions module
@@ -31,17 +59,16 @@ from modeling import *
 
 
 ## game data
-# each room data
 from collections import defaultdict
+# each room data
 class RoomData:
     def __init__(self) -> None:
         self.roomId: str = ""
-        self.wordData = dict()   # {char: {len: "word1,word2,...", ...}, ...}
-        self.wordTable = dict()  # {loc: char, ...}
-        self.wordMap = dict()    # {word: [loc, ...], ...}
+        self.wordTable = dict() # {loc: char, ...}
+        self.wordMap = defaultdict(list)   # {word: [loc, ...], ...}
         self.height: int = 0
         self.width: int = 0
-        self.users = dict()      # {user: score, ...}
+        self.users = dict()     # {user: score, ...}
         self.roundCnt: int = -1
 
 
@@ -63,7 +90,6 @@ def printWordTable(wordTable: dict, height: int, width: int) -> None:
             # cell = str(loc).zfill(3) + cell
             print(cell, end=" ")
         print()
-    print()
 
 
 
@@ -108,42 +134,39 @@ class InitBody(BaseModel):
 # initialize game with new word table in size(height * width)
 @app.post("/init")
 def init(Init: InitBody) -> dict:
-    print("start to initialize game")
+    print("GAME START: game initializing")
     start = time.time()
 
     # get room data and initialize
-    global Rooms
+    global Rooms, ToPut, ToFind
     Room = Rooms[Init.roomId]
     Room.roundCnt = 0
     Room.height, Room.width = Init.size, Init.size
-    SIZE = Room.height * Room.width
-    EMPTY, START = "  ", 0
-    Room.wordData = dataBase
+    START = 0
 
-    # initialize wordTable with empty cell
-    for i in range(SIZE):
-        Room.wordTable[i] = EMPTY
+    # initialize wordTable
+    Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
 
     # initialize userData with score 0
     for user in Init.users:
         Room.users[user] = START
 
     # get word table and word map
-    Room.wordTable = getWordTable(Room.wordData, Room.wordTable, 
+    Room.wordTable = getWordTable(ToPut, Room.wordTable, 
                                   Room.height, Room.width)
-    Room.wordMap = getWordMap(Room.wordData, Room.wordTable, Room.wordMap, 
+    Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
                               Room.height, Room.width)
 
     # put word table in response body
     Init.wordTable = Room.wordTable
 
-    # print at terminal(for test)
-    print(f"round start: {Room.roundCnt}")
-    printWordTable(Room.wordTable, Room.height, Room.width)
-    print(f"words: {len(list(Room.wordMap.keys()))}")
+    # # print at terminal(for test)
+    # printWordTable(Room.wordTable, Room.height, Room.width)
 
     end = time.time()
-    print(f"game initialized in {end - start} secs")
+    print(f"GAME START: game initialized in {end - start} secs")
+    print(f"GAME START: round start: {Room.roundCnt}")
+    print(f"GAME START: words in table: {len(list(Room.wordMap.keys()))}")
 
     return Init
 
@@ -162,11 +185,11 @@ class CheckBody(BaseModel):
 # if answer in word table, remove only the answer(includes duplicated)
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
-    print("start to check answer")
+    print("GAME RUNNING: start to check answer")
     start = time.time()
 
     # get room data
-    global Rooms
+    global Rooms, ToPut, ToFind
     Room = Rooms[Check.roomId]
     Room.roundCnt += 1
 
@@ -182,10 +205,10 @@ def check(Check: CheckBody) -> CheckBody:
     else:
         Check.removeWords, Check.mostSim \
             = getSimWords(simModel, wordList, answer)
-
+    
     # update room data
     Room.wordTable, Room.wordMap, Check.moveInfo \
-        = updateWordTable(Room.wordData, Room.wordTable, Room.wordMap, 
+        = updateWordTable(ToPut, ToFind, Room.wordTable, Room.wordMap, 
                           Check.removeWords, Room.height, Room.width)
 
     # update score
@@ -193,14 +216,29 @@ def check(Check: CheckBody) -> CheckBody:
     Room.users[Check.user] += increment
     Check.increment = increment
 
-    # print at terminal(for test)
-    print(f"roundCnt: {Room.roundCnt}")
-    print(f"user: {Check.user}, answer: {Check.answer}")
-    print(f"removeNums: {len(Check.removeWords)}, mostSim: {Check.mostSim}")
-    printWordTable(Room.wordTable, Room.height, Room.width)
-    print(f"remain words: {len(list(Room.wordMap.keys()))}")
+    # renew word table if words in table less than standard count
+    MIN = 40
+    # set moveInfo for all cells -> empty
+    if len(list(Room.wordMap.keys())) < MIN:
+        SIZE = Room.height * Room.width
+        Check.moveInfo = list()
+        for loc in range(SIZE - 1, -1, -1):
+            Check.moveInfo.append([loc, SIZE, Room.wordTable[loc]])
+        # initWordTable
+        Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
+        # get word table and word map
+        Room.wordTable = getWordTable(ToPut, Room.wordTable, 
+                                      Room.height, Room.width)
+        Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
+                                  Room.height, Room.width)
 
+    # # print at terminal(for test)
+    # printWordTable(Room.wordTable, Room.height, Room.width)
     end = time.time()
-    print(f"answer checked in {end - start} secs")
+    print(f"GAME RUNNING: answer checked in {end - start} secs")
+    print(f"GAME RUNNING: roundCnt: {Room.roundCnt}")
+    print(f"GAME RUNNING: user: {Check.user}, answer: {Check.answer}")
+    print(f"GAME RUNNING: removed words: {len(Check.removeWords)}, mostSim: {Check.mostSim}")
+    print(f"GAME RUNNING: words in table: {len(list(Room.wordMap.keys()))}")
 
     return Check

@@ -26,7 +26,7 @@ def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
     return cosine_similarity([ansVector], [cmpVector])
 
 
-# get similar words with similarity greater or equal standard value
+# get similar words with similarity greater than standard value
 # TODO: modify standard value and length of simWords
 def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     simData = list()
@@ -47,7 +47,7 @@ def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     # limit maximum number of similar words
     simData.sort(key = lambda x: -x[0])
     mostSim = simData[0][0]
-    GET = int(BASE ** mostSim)
+    GET = int(BASE ** mostSim) // 4
     simWords = list(word[1] for word in simData)[:GET]
 
     return simWords, int(mostSim * 100)
