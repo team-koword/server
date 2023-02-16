@@ -223,14 +223,16 @@ def check(Check: CheckBody) -> CheckBody:
         # initWordTable
         Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
         # get word table and word map
-        Room.wordTable = getWordTable(ToPut, Room.wordTable, 
-                                      Room.height, Room.width)
+        Room.wordTable, Check.moveInfo = getWordTable(ToPut, Room.wordTable, 
+                                                      Room.height, Room.width, 
+                                                      Check.moveInfo)
         Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
                                   Room.height, Room.width)
         print("GAME REFRESHED: table renewed")
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
+
     end = time.time()
     print(f"GAME RUNNING: answer checked in {end - start} secs")
     print(f"GAME RUNNING: round now: {Room.roundCnt}")

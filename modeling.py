@@ -32,7 +32,7 @@ def getSimWords(simModel, wordList: list, answer: str) -> Tuple[list, int]:
     simData = list()
     simWords = list()
     mostSim = 0
-    MIN = 0.5
+    MIN = 0.4
     BASE = 200
     CENT = 100
     CALIB = 3
