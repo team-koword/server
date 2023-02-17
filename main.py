@@ -136,6 +136,7 @@ def init(Init: InitBody) -> dict:
     # get room data and initialize
     global Rooms, ToPut, ToFind
     Room = Rooms[Init.roomId]
+    Room.roomId = Init.roomId
     Room.roundCnt = 0
     Room.height, Room.width = Init.size, Init.size
     START = 0
@@ -158,10 +159,11 @@ def init(Init: InitBody) -> dict:
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
+    # print(f"wordList: {list(Room.wordMap.keys())}")
 
     end = time.time()
     print(f"GAME START: game initialized in {end - start} secs")
-    print(f"GAME START: round start: {Room.roundCnt}")
+    print(f"GAME START: room: {Room.roomId}, round start: {Room.roundCnt}")
     print(f"GAME START: words in table: {len(list(Room.wordMap.keys()))}")
 
     return Init
@@ -232,10 +234,12 @@ def check(Check: CheckBody) -> CheckBody:
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
+    # print(f"wordList: {list(Room.wordMap.keys())}")
+    # print(f"moveinfo: {Check.moveInfo}")
 
     end = time.time()
     print(f"GAME RUNNING: answer checked in {end - start} secs")
-    print(f"GAME RUNNING: round now: {Room.roundCnt}")
+    print(f"GAME RUNNING: room: {Room.roomId}, round now: {Room.roundCnt}")
     print(f"GAME RUNNING: user: {Check.user}, answer: {Check.answer}")
     print(f"GAME RUNNING: removed words: {len(Check.removeWords)}, mostSim: {Check.mostSim}")
     print(f"GAME RUNNING: words in table: {len(list(Room.wordMap.keys()))}")

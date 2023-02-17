@@ -159,12 +159,17 @@ def getWordMap(ToFind: dict, wordTable: dict, wordMap: dict,
         for rowStart in range(height - 1):
             tempWord = wordTable[getLoc(rowStart, col, width)]
             tempLocs = [getLoc(rowStart, col, width)]
-            tempChar, tempLen = tempWord[0], str(len(tempWord))
-            if 2 <= int(tempLen) <= 5 and tempChar in ToFind.keys() \
-                and tempLen in ToFind[tempChar].keys() \
-                    and tempWord in ToFind[tempChar][tempLen]:
-                wordMap[tempWord].append(tempLocs[:])
-                downCnt += 1
+            for rowEnd in range(rowStart + 1, height):
+                tempWord += wordTable[getLoc(rowEnd, col, width)]
+                tempLocs.append(getLoc(rowEnd, col, width))
+                tempChar, tempLen = tempWord[0], str(len(tempWord))
+                if 2 <= int(tempLen) <= 5 and tempChar in ToFind.keys() \
+                    and tempLen in ToFind[tempChar].keys() \
+                        and tempWord in ToFind[tempChar][tempLen]:
+                    if not tempWord in wordMap.keys():
+                        wordMap[tempWord] = list()
+                    wordMap[tempWord].append(tempLocs[:])
+                    downCnt += 1
         return downCnt
 
     wordMap = dict()
