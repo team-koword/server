@@ -53,7 +53,7 @@ def getRandWord(ToPut: dict, startChar: str, dist: int) -> str:
         return getRandChar(ToPut)
 
     rand_len = choice(avail_len)
-    rand_word = choice(ToPut[startChar][rand_len].split(","))
+    rand_word = choice(ToPut[startChar][rand_len])
     return rand_word
 
 
