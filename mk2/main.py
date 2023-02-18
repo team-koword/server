@@ -8,14 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.websockets import WebSocketDisconnect
 from starlette.middleware.cors import CORSMiddleware
-import random
 
-import threading
-import schedule
-import time
-import asyncio
-
-import json
 import requests
 
 
@@ -287,6 +280,11 @@ async def websocket_endpoint(
     print("in websocket")
     #print(websocket.client_state.name)
     await notifier.connect(websocket, room_name)
+    if notifier.room_game_start[room_name] == 1:
+        print("진행중인 방은 접근 불가. 방이름은 = ", room_name)
+        go_back_data = {"type":"game_ing"} 
+        go_back_data = json.dumps(go_back_data)
+        await websocket.send_text(go_back_data)
     try:
         timer = ""
         await notifier.check_users(room_name)
@@ -305,6 +303,7 @@ async def websocket_endpoint(
                 await notifier.insert_user_access_info(f"{data}", room_name, d["userid"], websocket)
                 # 게임보드 보내고
                 # 게임 시작 버튼 제거하고
+                await notifier.send_to_room(room_name, f"{data}")
 
             if d["type"] == 'video':
                 await notifier._notCam(f"{data}", room_name)
@@ -333,7 +332,7 @@ async def websocket_endpoint(
 
     except WebSocketDisconnect:
         """소켓 연결이 끊어졌을 시"""
-
+        print("WebSocketDisconnect~~~~~~~~~~~~~~~~~~~~~~~~")
         # 연결정보 삭제
         get_user_id = notifier.remove(websocket, room_name)
 
