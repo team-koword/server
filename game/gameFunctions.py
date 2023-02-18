@@ -130,7 +130,7 @@ def getWordTable(ToPut: dict, wordTable: dict, height: int, width: int,
 
 # get words and their locations in word table
 def getWordMap(ToFind: dict, wordTable: dict, wordMap: dict,
-               height: int, width: int) -> dict:
+               height: int, width: int) -> Tuple[dict, set]:
     # find if temporary word in word map
     def _find(ToFind: dict, wordMap: dict,
               tempWord: str, tempLocs: list, dirCnt: int) -> int:
@@ -168,7 +168,17 @@ def getWordMap(ToFind: dict, wordTable: dict, wordMap: dict,
                 _find(ToFind, wordMap, tempWord, tempLocs, downCnt)
         return downCnt
 
+    # get locations of characters possible to be words
+    def _getPossLocs(wordMap: dict) -> set:
+        possLocs = set()
+        for allLocs in wordMap.values():
+            for locs in allLocs:
+                for loc in locs:
+                    possLocs.add(loc)
+        return possLocs
+
     wordMap = dict()
+
     rightCnt, downCnt = 0, 0
     for row in range(0, height):
         rightCnt = _rightwards(ToFind, wordTable, wordMap,
@@ -177,15 +187,16 @@ def getWordMap(ToFind: dict, wordTable: dict, wordMap: dict,
         downCnt = _downwards(ToFind, wordTable, wordMap,
                              height, width, col, downCnt)
 
+    possLocs = _getPossLocs(wordMap)
     # return wordMap, rightCnt, downCnt
-    return wordMap
+    return wordMap, possLocs
 
 
 # check if the answer or similar words in word table
 # if the answer in word table, remove only the answer(includes duplicated)
 def updateWordTable(ToPut: dict, ToFind: dict, wordTable: dict, wordMap: dict,
                     removeWords: list, height: int, width: int) \
-        -> Tuple[dict, dict, list]:
+        -> Tuple[dict, dict, set, list]:
     # remove the answer(s) or similar words
     def _remove(wordTable: dict, wordMap: dict, moveInfo: list,
                 removeWords: list, height: int, width: int) -> list:
@@ -237,6 +248,6 @@ def updateWordTable(ToPut: dict, ToFind: dict, wordTable: dict, wordMap: dict,
     # add
     wordTable, moveInfo = _add(ToPut, wordTable, moveInfo, height, width)
     # update wordMap
-    wordMap = getWordMap(ToFind, wordTable, wordMap, height, width)
+    wordMap, possLocs = getWordMap(ToFind, wordTable, wordMap, height, width)
 
-    return wordTable, wordMap, moveInfo
+    return wordTable, wordMap, possLocs, moveInfo
