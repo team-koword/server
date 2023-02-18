@@ -115,7 +115,7 @@ origins = [
 ]
 
 
-# request
+# request and response
 from typing import Optional, List
 from pydantic import BaseModel
 
