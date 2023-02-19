@@ -1,6 +1,6 @@
 ## for test
 # print colored in terminal
-class Colors:
+class C:
     # type
     HEADER = "\033[95m"
     BOLD = "\033[1m"
@@ -53,7 +53,7 @@ class Colors:
     End = "\033[0m"
 
 # start server
-print(f"\n\n{Colors.white}{Colors.B_blue}GAME SERVER STARTED{Colors.End}")
+print(f"\n\n{C.white}{C.B_blue}GAME SERVER STARTED{C.End}")
 
 # test run-time
 import time
@@ -71,30 +71,30 @@ def get_json(fileName: str) -> dict:
 
 
 # get json data
-print(f"LOADING DATA: {Colors.Cyan}dictionary{Colors.End}")
+print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
 start = time.time()
 
 try:
     ToPut = get_json("to_put.json")
     ToFind = get_json("to_find.json")
     end = time.time()
-    print(f"{Colors.Green}SUCCESS{Colors.End} to load dictionary in {Colors.Cyan}{end - start}{Colors.End} secs")
+    print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
-    print(f"{Colors.red}FAIL{Colors.End} to load dictionary: {err}")
+    print(f"{C.red}FAIL{C.End} to load dictionary: {err}")
 
 # get vector similarity model
-print(f"LOADING DATA: {Colors.Cyan}fast-text model{Colors.End}")
+print(f"LOADING DATA: {C.Cyan}fast-text model{C.End}")
 start = time.time()
 
 import fasttext
 try:
     simModel = fasttext.load_model('./model.bin')
     end = time.time()
-    print(f"{Colors.Green}SUCCESS{Colors.End} to load fast-text model in {Colors.Cyan}{end - start}{Colors.End} secs")
+    print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
-    print(f"{Colors.red}FAIL{Colors.End} to load fast-text model: {err}")
+    print(f"{C.red}FAIL{C.End} to load fast-text model: {err}")
 
-print(f"{Colors.white}{Colors.B_blue}GAME SERVER IS READY{Colors.End}\n\n")
+print(f"{C.white}{C.B_blue}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
@@ -182,8 +182,8 @@ class InitBody(BaseModel):
 # initialize game with new word table in size(height * width)
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
-    print(f"\n\n{Colors.Blue}NEW GAME STARTED{Colors.End}")
-    print(f"room {Colors.Cyan}{Init.roomId}{Colors.End}")
+    print(f"\n\n{C.Blue}NEW GAME STARTED{C.End}")
+    print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
     # get room data and initialize
@@ -208,13 +208,15 @@ def init(Init: InitBody) -> InitBody:
                                              Room.height, Room.width)
 
     # put word table in response body
+    Init.wordTable = Room.wordTable
+    
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
     # print(f"wordList: {list(Room.wordMap.keys())}")
 
     end = time.time()
-    print(f"game initialized in {Colors.Cyan}{end - start}{Colors.End} secs")
-    print(f"{Colors.Cyan}{len(list(Room.wordMap.keys()))}{Colors.End} words in table\n\n")
+    print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
+    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table\n\n")
 
     return Init
 
@@ -234,8 +236,8 @@ class CheckBody(BaseModel):
 # if answer in word table, remove only the answer(includes duplicated)
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
-    print(f"\n\n{Colors.Blue}CHECKING ANSWER{Colors.End}")
-    print(f"room {Colors.Cyan}{Check.roomId}{Colors.End}")
+    print(f"\n\n{C.Blue}CHECKING ANSWER{C.End}")
+    print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
     # get room data
@@ -284,7 +286,7 @@ def check(Check: CheckBody) -> CheckBody:
         Room.wordMap, Check.possLocs = getWordMap(ToFind, 
                                                  Room.wordTable, Room.wordMap, 
                                                  Room.height, Room.width)
-        print(f"too little words in table, {Colors.Green}TABLE REFRESHED{Colors.End}")
+        print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
@@ -292,10 +294,10 @@ def check(Check: CheckBody) -> CheckBody:
     # print(f"moveinfo: {Check.moveInfo}")
 
     end = time.time()
-    print(f"answer checked in {Colors.Cyan}{end - start}{Colors.End} secs")
-    print(f"round {Colors.Cyan}{Room.roundCnt}{Colors.End}, user: {Colors.Cyan}{Check.user}{Colors.End}, answer: {Colors.Cyan}{Check.answer}{Colors.End}")
-    print(f"removed words: {Colors.Cyan}{len(Check.removeWords)}{Colors.End}, mostSim: {Colors.Cyan}{Check.mostSim}{Colors.End}")
-    print(f"{Colors.Cyan}{len(list(Room.wordMap.keys()))}{Colors.End} words in table\n\n")
+    print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
+    print(f"round {C.Cyan}{Room.roundCnt}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
+    print(f"removed words: {C.Cyan}{len(Check.removeWords)}{C.End}, mostSim: {C.Cyan}{Check.mostSim}{C.End}")
+    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table\n\n")
 
     return Check
 
@@ -309,8 +311,8 @@ class FinishBody(BaseModel):
 # and what words removed with each answer
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
-    print(f"\n\n{Colors.Magenta}FINISHING GAME{Colors.End}")
-    print(f"room {Colors.Cyan}{Finish.roomId}{Colors.End}")
+    print(f"\n\n{C.Magenta}FINISHING GAME{C.End}")
+    print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 
     # get room data
@@ -334,11 +336,11 @@ def finish(Finish: FinishBody) -> FinishBody:
     TOTAL = sum(score[2] for score in Finish.scores)
     
     end = time.time()
-    # print(f"game data analyzed in {Colors.Cyan}{end - start}{Colors.End} secs")
-    print(f"played {Colors.Cyan}{start - START}{Colors.End} secs, {Colors.Cyan}{Room.roundCnt}{Colors.End} rounds")
-    print(f"total {Colors.Cyan}{TOTAL}{Colors.End} words removed")
+    print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
+    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.roundCnt}{C.End} rounds")
+    print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
     for rank, user, score in Finish.scores:
-        print(f"rank {Colors.Cyan}{rank}{Colors.End}: {Colors.Cyan}{user}{Colors.End}, score: {Colors.Cyan}{score}{Colors.End}")
-    print(f"{Colors.Magenta}GAME FINISHED{Colors.End}\n\n")
+        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
+    print(f"{C.Magenta}GAME FINISHED{C.End}\n\n")
     
     return Finish
