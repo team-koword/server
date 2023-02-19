@@ -204,15 +204,15 @@ def init(Init: InitBody) -> InitBody:
     # get word table and word map
     Room.wordTable = getWordTable(ToPut, Room.wordTable, 
                                   Room.height, Room.width)
-    Room.wordMap, Init.possLocs = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
-                                             Room.height, Room.width)
+    Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
+                              Room.height, Room.width)
 
-    # put word table in response body
+    # put word table and possible locations in response body
     Init.wordTable = Room.wordTable
+    Init.possLocs = getPossLocs(Room.wordMap)
     
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
-    # print(f"wordList: {list(Room.wordMap.keys())}")
 
     end = time.time()
     print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
@@ -254,11 +254,11 @@ def check(Check: CheckBody) -> CheckBody:
         Check.mostSim = 100
     # get similar words in word table
     else:
-        Check.removeWords, Check.mostSim \
-            = getSimWords(simModel, wordList, Check.answer)
+        Check.removeWords, Check.mostSim = getSimWords(simModel, wordList, 
+                                                       Check.answer)
     
     # update room data
-    Room.wordTable, Room.wordMap, Check.possLocs, Check.moveInfo \
+    Room.wordTable, Room.wordMap, Check.moveInfo \
         = updateWordTable(ToPut, ToFind, Room.wordTable, Room.wordMap, 
                           Check.removeWords, Room.height, Room.width)
     
@@ -284,19 +284,20 @@ def check(Check: CheckBody) -> CheckBody:
         Room.wordTable, Check.moveInfo = getWordTable(ToPut, Room.wordTable, 
                                                       Room.height, Room.width, 
                                                       Check.moveInfo)
-        Room.wordMap, Check.possLocs = getWordMap(ToFind, 
-                                                 Room.wordTable, Room.wordMap, 
-                                                 Room.height, Room.width)
+        Room.wordMap = getWordMap(ToFind, Room.wordTable, Room.wordMap, 
+                                  Room.height, Room.width)
         print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
+
+    # put possible locations in response body
+    Check.possLocs = getPossLocs(Room.wordMap)
 
     # # print at terminal(for test)
     # printWordTable(Room.wordTable, Room.height, Room.width)
-    # print(f"wordList: {list(Room.wordMap.keys())}")
-    # print(f"moveinfo: {Check.moveInfo}")
 
     end = time.time()
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
     print(f"turn {C.Cyan}{Room.turns}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
+    print(f"removed words{C.Cyan}{Check.removeWords}{C.End}")
     print(f"removed words: {C.Cyan}{len(Check.removeWords)}{C.End}, mostSim: {C.Cyan}{Check.mostSim}{C.End}")
     print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
     print(f"{C.Yellow}ANSWER CHECKED{C.End}\n\n")
