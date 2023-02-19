@@ -294,16 +294,16 @@ async def websocket_endpoint(
             d["room_name"] = room_name
             room_members = (notifier.get_members(room_name) if notifier.get_members(room_name) is not None else [])
 
-            if websocket not in room_members:
-                print("USER NOT IN ROOM MEMBERS: RECONNECTING")
-                print("업슨ㄴ 웹소켓은  ",websocket)
-                print("룸멤버는  ",room_members)
-                await notifier.connect(websocket, room_name)
-                notifier.user_access_info[room_name][websocket] = d["userid"]
-                await notifier.insert_user_access_info(f"{data}", room_name, d["userid"], websocket)
-                # 게임보드 보내고
-                # 게임 시작 버튼 제거하고
-                await notifier.send_to_room(room_name, f"{data}")
+            # if websocket not in room_members:
+            #     print("USER NOT IN ROOM MEMBERS: RECONNECTING")
+            #     print("업슨ㄴ 웹소켓은  ",websocket)
+            #     print("룸멤버는  ",room_members)
+            #     await notifier.connect(websocket, room_name)
+            #     notifier.user_access_info[room_name][websocket] = d["userid"]
+            #     await notifier.insert_user_access_info(f"{data}", room_name, d["userid"], websocket)
+            #     # 게임보드 보내고
+            #     # 게임 시작 버튼 제거하고
+            #     await notifier.send_to_room(room_name, f"{data}")
 
             if d["type"] == 'video':
                 await notifier._notCam(f"{data}", room_name)
