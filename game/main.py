@@ -114,7 +114,7 @@ class RoomData:
         self.height: int = 0
         self.width: int = 0
         self.users = defaultdict(int)               # {user: score, ...}
-        self.roundCnt: int = -1                     # will be 0 when game initialized
+        self.turns: int = -1                     # will be 0 when game initialized
         self.answerLog: list = list()               # [[answer, [removed words]], ...]
 
 
@@ -190,7 +190,7 @@ def init(Init: InitBody) -> InitBody:
     global Rooms, ToPut, ToFind
     Room = Rooms[Init.roomId]
     Room.roomId = Init.roomId
-    Room.roundCnt = 0
+    Room.turns = 0
     Room.height, Room.width = Init.size, Init.size
     START = 0
 
@@ -216,7 +216,8 @@ def init(Init: InitBody) -> InitBody:
 
     end = time.time()
     print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
-    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table\n\n")
+    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
+    print(f"{C.Blue}GAME START{C.End}\n\n")
 
     return Init
 
@@ -236,14 +237,14 @@ class CheckBody(BaseModel):
 # if answer in word table, remove only the answer(includes duplicated)
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
-    print(f"\n\n{C.Blue}CHECKING ANSWER{C.End}")
+    print(f"\n\n{C.Yellow}CHECKING ANSWER{C.End}")
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
     # get room data
     global Rooms, ToPut, ToFind
     Room = Rooms[Check.roomId]
-    Room.roundCnt += 1
+    Room.turns += 1
 
     # get word list to check the answer
     wordList = list(Room.wordMap.keys())
@@ -262,7 +263,7 @@ def check(Check: CheckBody) -> CheckBody:
                           Check.removeWords, Room.height, Room.width)
     
     # log removed words
-    Room.answerLog.append([Room.roundCnt, Check.answer, Check.removeWords])
+    Room.answerLog.append([Room.turns, Check.answer, Check.removeWords])
 
     # update score
     increment = len(Check.removeWords)
@@ -295,9 +296,10 @@ def check(Check: CheckBody) -> CheckBody:
 
     end = time.time()
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
-    print(f"round {C.Cyan}{Room.roundCnt}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
+    print(f"turn {C.Cyan}{Room.turns}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
     print(f"removed words: {C.Cyan}{len(Check.removeWords)}{C.End}, mostSim: {C.Cyan}{Check.mostSim}{C.End}")
-    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table\n\n")
+    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
+    print(f"{C.Yellow}ANSWER CHECKED{C.End}\n\n")
 
     return Check
 
@@ -305,8 +307,8 @@ def check(Check: CheckBody) -> CheckBody:
 class FinishBody(BaseModel):
     type: str
     roomId: str
-    scores: Optional[list] = None       # [[rand, user, score], ...]
-    answerLog: Optional[list] = None    # [[round, answer, [removeWord, ...]], ...]
+    scores: Optional[list] = None       # [[rank, user, score], ...]
+    answerLog: Optional[list] = None    # [[turn, answer, [removeWord, ...]], ...]
 # show each user's score from first to last
 # and what words removed with each answer
 @app.post("/finish")
@@ -337,7 +339,7 @@ def finish(Finish: FinishBody) -> FinishBody:
     
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
-    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.roundCnt}{C.End} rounds")
+    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.turns}{C.End} turns")
     print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
     for rank, user, score in Finish.scores:
         print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
