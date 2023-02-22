@@ -3,7 +3,6 @@ autopep8==2.0.1
 click==8.1.3
 colorama==0.4.6
 fastapi==0.89.1
-fasttext @ file:///Users/hier/Library/CloudStorage/OneDrive-%E1%84%80%E1%85%A2%E1%84%8B%E1%85%B5%E1%86%AB/Codes/kraftonjungle/14-18_project/fast/fastText
 Flask==2.2.2
 h11==0.14.0
 hgtk==0.1.3
