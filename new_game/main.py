@@ -110,6 +110,7 @@ from pydantic import BaseModel
 
 # request and response body
 class InitBody(BaseModel):
+    type: str
     roomId: str
     size: int
     tick: float
@@ -148,8 +149,9 @@ def init(Init: InitBody) -> InitBody:
 
 # request and response body
 class NextBody(BaseModel):
+    type: str
     roomId: str
-    type: Optional[str] = None	# "continue" | "gameover"
+    status: Optional[str] = None	# "continue" | "gameover"
     word: Optional[str] = None
     left: Optional[int] = None
     length: Optional[int] = None
@@ -187,8 +189,8 @@ def next(Next: NextBody) -> NextBody:
                          Room.height, Room.width, Next.word, Next.left)
     
     # game over if next word reached to top
-    Next.type = "gameover" if Next.fall == OVER else "continue"
-    if Next.type == "gameover":
+    Next.status = "gameover" if Next.fall == OVER else "continue"
+    if Next.status == "gameover":
         print(f"\n{C.red}GAMEOVER{C.End}\n")
 
     end = time.time()
@@ -206,11 +208,13 @@ def next(Next: NextBody) -> NextBody:
 
 # request and response body
 class CheckBody(BaseModel):
+    type: str
     roomId: str
     user: str
     answer: str
     removedWords: Optional[list] = None # [word, ...]
     moveInfo: Optional[list] = None     # [[word: str, fall: int], ...]
+    increment: Optional[int] = None
 # check and remove words similar with the answer
 # if the answer in word table, lock it
 @app.post("/check")
@@ -229,8 +233,14 @@ def check(Check: CheckBody) -> CheckBody:
     # lock the answer if exists in word table
     if Check.answer in Check.removedWords:
         Check.removedWords.remove(Check.answer)
+
     # update answer log
     Room.answerLog.append([Room.tries, Check.answer, Check.removedWords])
+    
+    # update score
+    increment = len(Check.removedWords)
+    Room.users[Check.user] += increment
+    Check.increment = increment
 
     # set moveInfo
     Check.moveInfo = list()
@@ -261,3 +271,45 @@ def check(Check: CheckBody) -> CheckBody:
     print(f"{C.Blue}ANSWER CHECKED{C.End}\n\n")
 
     return Check
+
+
+# request and response body
+class FinishBody(BaseModel):
+    type: str
+    roomId: str
+    scores: Optional[list] = None       # [[rank, user, score], ...]
+    answerLog: Optional[list] = None    # [[turn, answer, [removedWord, ...]], ...]
+# show each user's score from first to last
+# and what words removed with each answer
+@app.post("/finish")
+def finish(Finish: FinishBody) -> FinishBody:
+    print(f"\n\n{C.Blue}FINISHING GAME{C.End}")
+    print(f"room {C.Cyan}{Finish.roomId}{C.End}")
+    start = time.time()
+
+    # get room data and dictionary
+    global Rooms
+    Room = Rooms[Finish.roomId]
+
+    # user's score in score descending order
+    scores = sorted([[user, score] for user, score \
+        in Room.users.items()], key=lambda x: -x[1])
+    # put rank at first
+    Finish.scores = [[rank, user, score] for rank, (user, score) \
+        in enumerate(scores, start=1)]
+
+    # answer log
+    Finish.answerLog = Room.answerLog
+    
+    # total count for removed words
+    TOTAL = sum(score[2] for score in Finish.scores)
+    
+    end = time.time()
+    print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
+    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.tries}{C.End} tries")
+    print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
+    for rank, user, score in Finish.scores:
+        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
+    print(f"{C.Blue}GAME FINISHED{C.End}\n\n")
+    
+    return Finish

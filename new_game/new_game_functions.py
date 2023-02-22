@@ -81,9 +81,10 @@ def printWordTable(wordTable: dict, height: int, width: int) -> None:
     for row in range(-1, height):
         for col in range(width):
             loc = row * width + col
-            cell = wordTable[loc].replace(" ", "_")
-            # print location
-            DIGIT = len(str(height * width))
-            cell = str(loc).zfill(DIGIT) + cell
+            cell = wordTable[loc]
+            # cell = wordTable[loc].replace(" ", "_")
+            # # print location
+            # DIGIT = len(str(height * width))
+            # cell = str(loc).zfill(DIGIT) + cell
             print(cell, end=" ")
         print()
