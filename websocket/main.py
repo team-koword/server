@@ -1,14 +1,9 @@
-import logging
 import json
 from collections import defaultdict
 
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, WebSocket, Request, Depends, BackgroundTasks
-from fastapi.templating import Jinja2Templates
-
+from fastapi import FastAPI, WebSocket, BackgroundTasks
 from starlette.websockets import WebSocketDisconnect
 from starlette.middleware.cors import CORSMiddleware
-
 import requests
 import asyncio
 
@@ -21,10 +16,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
-templates = Jinja2Templates(directory="templates")
 
 class Notifier:
     """
@@ -163,9 +155,6 @@ class Notifier:
         await self.send_to_room(room_name, bytesimage)
 
     async def insert_user_access_info(self, info, room_name, userid, websocket):
-        """접속한 유저정보 저장, client에게 해당 유저의 cam을 보여줄 수 있는 HTML 만들라고 전달"""
-
-
         print(userid)
         # 들어왔으니 그려라
         print("들어와라", websocket)
@@ -326,15 +315,6 @@ class Notifier:
             await asyncio.sleep(1)
 
 notifier = Notifier()
-# controller routes
-@app.get("/test/{room_name}/{user_name}")
-async def get(request: Request, room_name, user_name):
-    print("in index")
-    return templates.TemplateResponse(
-        "chat_room.html",
-        {"request": request, "room_name": room_name, "user_name": user_name},
-    )
-
 @app.websocket("/ws/{room_name}")
 async def websocket_endpoint(
     websocket: WebSocket, room_name, background_tasks: BackgroundTasks
