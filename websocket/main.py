@@ -33,7 +33,7 @@ class Notifier:
         self.board_size = 11                                # game_board size
         self.turn_timer_task: dict = defaultdict(dict)      # 비동기로 실행할 매 턴 타이머
         self.limit_timer_task: dict = defaultdict(dict)     # 비동기로 실행할 게임 제한 시간 타이머
-        self.game_time = 3                                 # 게임 제한 시간(초)
+        self.game_time = 60                                 # 게임 제한 시간(초)
         self.turn_time = 7                                  # 유저 별 턴 시간(초)
 
     async def get_notification_generator(self):
@@ -290,9 +290,9 @@ class Notifier:
 
         params = { "type": "finish", }
         await self.game_server_request(room_name, "finish", "POST", params)
-        if limit_timer_task != {}:
+        if self.limit_timer_task[room_name] != {}:
             self.limit_timer_task[room_name].cancel()
-        if turn_timer_task != {}:
+        if self.turn_timer_task[room_name] != {}:
             self.turn_timer_task[room_name].cancel()
         self.room_game_start[room_name] = 0
         self.recent_turn_user[room_name] = {}
