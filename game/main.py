@@ -1,63 +1,20 @@
-## for test
 # print colored in terminal
-class C:
-    # type
-    HEADER = "\033[95m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
+from colored_terminal import C
 
-    # color
-    Black = "\033[30m"
-    Red	= "\033[31m"
-    Green = "\033[32m"
-    Yellow = "\033[33m"
-    Blue = "\033[34m"
-    Magenta = "\033[35m"
-    Cyan = "\033[36m"
-    White = "\033[37m"
 
-    # bright color
-    black = "\033[90m"
-    red = "\033[91m"
-    green = "\033[92m"
-    yellow = "\033[93m"
-    blue = "\033[94m"
-    magenta = "\033[95m"
-    cyan = "\033[96m"
-    white = "\033[97m"
+##### COMPETETION MODE SERVER #####
+print(f"\n\n{C.white}{C.B_magenta}COMPETETION MODE{C.End}")
 
-    # background_color
-    B_Black = "\033[40m"
-    B_Red = "\033[41m"
-    B_Green = "\033[42m"
-    B_Yellow = "\033[43m"
-    B_Blue = "\033[44m"
-    B_Magenta = "\033[45m"
-    B_Cyan = "\033[46m"
-    B_White = "\033[47m"
-
-    # bright background_color
-    B_black = "\033[100m"
-    B_red = "\033[101m"
-    B_green = "\033[102m"
-    B_yellow = "\033[103m"
-    B_blue = "\033[104m"
-    B_magenta = "\033[105m"
-    B_cyan = "\033[106m"
-    B_white = "\033[107m"
-
-    # RGB color \033[38;2;r;g;bm
-    # RGB background \033[48;2;r;g;bm
-
-    # reset
-    End = "\033[0m"
 
 # start server
-print(f"\n\n{C.white}{C.B_blue}GAME SERVER STARTED{C.End}")
+print(f"\n\n{C.Magenta}GAME SERVER STARTED{C.End}")
 
 # test run-time
 import time
 START = time.time()
+
+
+
 
 ## words data
 # get json file function
@@ -88,13 +45,13 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model('./model.bin')
+    simModel = fasttext.load_model("./model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
     print(f"{C.red}FAIL{C.End} to load fast-text model: {err}")
 
-print(f"{C.white}{C.B_blue}GAME SERVER IS READY{C.End}\n\n")
+print(f"{C.Magenta}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
@@ -105,16 +62,19 @@ from modeling import *
 
 ## game data
 from collections import defaultdict
+EMPTY = "  "
+
+
 # each room data
 class RoomData:
     def __init__(self) -> None:
         self.roomId: str = ""
-        self.wordTable = defaultdict(lambda: "  ")  # {loc: char, ...}
+        self.wordTable = defaultdict(lambda: EMPTY) # {loc: char, ...}
         self.wordMap = defaultdict(list)            # {word: [loc, ...], ...}
         self.height: int = 0
         self.width: int = 0
         self.users = defaultdict(int)               # {user: score, ...}
-        self.turns: int = -1                     # will be 0 when game initialized
+        self.turns: int = -1                        # will be 0 when game initialized
         self.answerLog: list = list()               # [[answer, [removed words]], ...]
 
 
@@ -123,27 +83,14 @@ Rooms = defaultdict(RoomData)
 
 
 # game functions module
-from gameFunctions import *
-
-
-# print wordTable in Terminal(for test)
-def printWordTable(wordTable: dict, height: int, width: int) -> None:
-    for col in range(height):
-        for row in range(width):
-            loc = col * width + row
-            cell = wordTable[loc]
-            # # print location
-            # DIGIT = len(str(height * width))
-            # cell = str(loc).zfill(DIGIT) + cell
-            print(cell, end=" ")
-        print()
+from game_functions import *
 
 
 
 
 ## response and request
 # FastAPI
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 app = FastAPI()
 
 
@@ -167,7 +114,7 @@ origins = [
 
 
 # request and response
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -182,7 +129,7 @@ class InitBody(BaseModel):
 # initialize game with new word table in size(height * width)
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
-    print(f"\n\n{C.Blue}NEW GAME STARTED{C.End}")
+    print(f"\n\n{C.Magenta}NEW GAME STARTED{C.End}")
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
@@ -193,13 +140,11 @@ def init(Init: InitBody) -> InitBody:
     Room.turns = 0
     Room.height, Room.width = Init.size, Init.size
     START = 0
-
-    # initialize wordTable
-    Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
-
-    # initialize userData with score 0
     for user in Init.users:
         Room.users[user] = START
+
+    # initialize word table
+    Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
 
     # get word table and word map
     Room.wordTable = getWordTable(ToPut, Room.wordTable, 
@@ -217,7 +162,7 @@ def init(Init: InitBody) -> InitBody:
     end = time.time()
     print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
     print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
-    print(f"{C.Blue}GAME START{C.End}\n\n")
+    print(f"{C.Magenta}GAME START{C.End}\n\n")
 
     return Init
 
@@ -228,20 +173,20 @@ class CheckBody(BaseModel):
     roomId: str
     user: str
     answer: str
-    removeWords: Optional[list] = None  # [word, ...]
+    removedWords: Optional[list] = None  # [word, ...]
     mostSim: Optional[int] = None
     moveInfo: Optional[list] = None     # [[from, to, char], ...]
     increment: Optional[int] = None
     possLocs: Optional[set] = None      # {loc, ...}
 # check if answer word or similar words in word table
-# if answer in word table, remove only the answer(includes duplicated)
+# if the answer in word table, remove only the answer(includes duplicated)
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
-    print(f"\n\n{C.Yellow}CHECKING ANSWER{C.End}")
+    print(f"\n\n{C.Magenta}CHECKING ANSWER{C.End}")
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
-    # get room data
+    # get room data and dictionary
     global Rooms, ToPut, ToFind
     Room = Rooms[Check.roomId]
     Room.turns += 1
@@ -250,34 +195,33 @@ def check(Check: CheckBody) -> CheckBody:
     wordList = list(Room.wordMap.keys())
     # if the answer in word table, remove only the word(includes duplicated)
     if Check.answer in wordList:
-        Check.removeWords = [Check.answer]
+        Check.removedWords = [Check.answer]
         Check.mostSim = 100
     # get similar words in word table
     else:
-        Check.removeWords, Check.mostSim = getSimWords(simModel, wordList, 
-                                                       Check.answer)
+        Check.removedWords, Check.mostSim = getSimWords(simModel, wordList, 
+                                                        Check.answer)
     
     # update room data
     Room.wordTable, Room.wordMap, Check.moveInfo \
         = updateWordTable(ToPut, ToFind, Room.wordTable, Room.wordMap, 
-                          Check.removeWords, Room.height, Room.width)
+                          Check.removedWords, Room.height, Room.width)
     
     # log removed words
-    Room.answerLog.append([Room.turns, Check.answer, Check.removeWords])
+    Room.answerLog.append([Room.turns, Check.answer, Check.removedWords])
 
     # update score
-    increment = len(Check.removeWords)
+    increment = len(Check.removedWords)
     Room.users[Check.user] += increment
     Check.increment = increment
 
     # renew word table if words in table less than standard count
     MIN = 30
-    # set moveInfo for all cells -> empty
+    # set move information for all cells -> empty
     if len(list(Room.wordMap.keys())) < MIN:
         SIZE = Room.height * Room.width
-        Check.moveInfo = list()
-        for loc in range(SIZE - 1, -1, -1):
-            Check.moveInfo.append([loc, SIZE, Room.wordTable[loc]])
+        Check.moveInfo = [[loc, SIZE, Room.wordTable[loc]] \
+            for loc in range(SIZE - 1, -1, -1)]
         # initWordTable
         Room.wordTable = initWordTable(Room.wordTable, Room.height, Room.width)
         # get word table and word map
@@ -297,10 +241,9 @@ def check(Check: CheckBody) -> CheckBody:
     end = time.time()
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
     print(f"turn {C.Cyan}{Room.turns}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
-    print(f"removed words{C.Cyan}{Check.removeWords}{C.End}")
-    print(f"removed words: {C.Cyan}{len(Check.removeWords)}{C.End}, mostSim: {C.Cyan}{Check.mostSim}{C.End}")
+    print(f"{C.Cyan}{len(Check.removedWords)}{C.End} words removed: {C.Cyan}{Check.removedWords}{C.End}")
     print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
-    print(f"{C.Yellow}ANSWER CHECKED{C.End}\n\n")
+    print(f"{C.Magenta}ANSWER CHECKED{C.End}\n\n")
 
     return Check
 
@@ -309,7 +252,7 @@ class FinishBody(BaseModel):
     type: str
     roomId: str
     scores: Optional[list] = None       # [[rank, user, score], ...]
-    answerLog: Optional[list] = None    # [[turn, answer, [removeWord, ...]], ...]
+    answerLog: Optional[list] = None    # [[turn, answer, [removedWord, ...]], ...]
 # show each user's score from first to last
 # and what words removed with each answer
 @app.post("/finish")
@@ -318,19 +261,16 @@ def finish(Finish: FinishBody) -> FinishBody:
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 
-    # get room data
+    # get room data and dictionary
     global Rooms
     Room = Rooms[Finish.roomId]
 
-    # user's score
-    scores = list()
-    for user, score in Room.users.items():
-        scores.append([user, score])
-    # sort from first to last
-    scores.sort(key = lambda x: -x[1])
-    for i in range(len(scores)):
-        scores[i].insert(0, i + 1)
-    Finish.scores = scores
+    # user's score in score descending order
+    scores = sorted([[user, score] for user, score \
+        in Room.users.items()], key=lambda x: -x[1])
+    # put rank at first
+    Finish.scores = [[rank, user, score] for rank, (user, score) \
+        in enumerate(scores, start=1)]
 
     # answer log
     Finish.answerLog = Room.answerLog
