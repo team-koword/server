@@ -314,6 +314,16 @@ class Notifier:
             count -= 1
             await asyncio.sleep(1)
 
+def image_server_request(data):
+        """이미지서버 호출하여 데이터를 받아옴"""
+        url = "http://localhost:9999/"                                                  # 서버 주소
+        headers = {'Content-Type': 'application/json', 'charset': 'UTF-8', 'Accept': '*/*'}  # http 헤더
+        try:
+            return requests.post(url, headers=headers, data=data)
+        except Exception as exception:
+            print(exception)
+
+
 notifier = Notifier()
 @app.websocket("/ws/{room_name}")
 async def websocket_endpoint(
@@ -352,6 +362,7 @@ async def websocket_endpoint(
             #     await notifier.send_to_room(room_name, f"{data}")
 
             if d["type"] == 'video':
+                data = image_server_request(data).text
                 await notifier._notCam(f"{data}", room_name)
             elif d["type"] == 'message':
                 await notifier._notify(f"{data}", room_name)
