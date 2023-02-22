@@ -33,7 +33,7 @@ class Notifier:
         self.board_size = 11                                # game_board size
         self.turn_timer_task: dict = defaultdict(dict)      # 비동기로 실행할 매 턴 타이머
         self.limit_timer_task: dict = defaultdict(dict)     # 비동기로 실행할 게임 제한 시간 타이머
-        self.game_time = 60                                 # 게임 제한 시간(초)
+        self.game_time = 3                                 # 게임 제한 시간(초)
         self.turn_time = 7                                  # 유저 별 턴 시간(초)
 
     async def get_notification_generator(self):
@@ -238,13 +238,15 @@ class Notifier:
         
         body["roomId"] = room_name
         # 경로에 따른 전달 값 설정
-        if path == "check":
-            send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
-        elif path == "init":
+        if path == "init":
             #self.update_user_access_info(room_name)
             user_lists = list(self.user_access_info[room_name].values())
             body["users"] = user_lists
             body["size"] = self.board_size
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+        elif path == "check":
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
+        elif path == "finish":
             send_data = json.dumps(body, ensure_ascii=False, indent="\t")
 
         print(url)
@@ -264,7 +266,7 @@ class Notifier:
             await self.send_to_room(room_name, response.text)
 
         except Exception as exception:
-            print(exception)
+            print(response)
 
     async def game_timer(self, room_name, userid):
         """게임 전체 1분 타이머"""
@@ -285,6 +287,17 @@ class Notifier:
 
             count -= 1
             await asyncio.sleep(1)
+
+        params = { "type": "finish", }
+        await self.game_server_request(room_name, "finish", "POST", params)
+        if limit_timer_task != {}:
+            self.limit_timer_task[room_name].cancel()
+        if turn_timer_task != {}:
+            self.turn_timer_task[room_name].cancel()
+        self.room_game_start[room_name] = 0
+        self.recent_turn_user[room_name] = {}
+        self.turn_timer_task[room_name] = {}
+        self.limit_timer_task[room_name] = {}
 
     async def turn_timer(self, room_name, userid):
         """유저 전체 7초 타이머"""
