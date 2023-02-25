@@ -24,17 +24,18 @@ class Notifier:
     """
 
     def __init__(self):
-        self.connections: dict = defaultdict(dict)          # 기본 연결 정보
+        self.connections: dict = defaultdict(dict)                               # 기본 연결 정보
         self.generator = self.get_notification_generator()
         self.user_access_info: dict = defaultdict(lambda: defaultdict(dict))     # 현재 접속중인 소켓 정보
-        self.user_turn_count: dict = defaultdict(dict)      # user_access_info의 인덱스: 순서대로 접근하기 위해 선언한 변수
-        self.room_game_start: dict = defaultdict(dict)      # 현재 방이 게임 진행중인지 여부 - [0: 대기중, 1: 진행중]
-        self.recent_turn_user: dict = defaultdict(dict)     # 현재 턴인 유저의 정보
-        self.board_size = 11                                # game_board size
-        self.turn_timer_task: dict = defaultdict(dict)      # 비동기로 실행할 매 턴 타이머
-        self.limit_timer_task: dict = defaultdict(dict)     # 비동기로 실행할 게임 제한 시간 타이머
-        self.game_time = 60                                 # 게임 제한 시간(초)
-        self.turn_time = 7                                  # 유저 별 턴 시간(초)
+        self.user_turn_count: dict = defaultdict(dict)                           # user_access_info의 인덱스: 순서대로 접근하기 위해 선언한 변수
+        self.room_game_start: dict = defaultdict(dict)                           # 현재 방이 게임 진행중인지 여부 - [0: 대기중, 1: 진행중]
+        self.recent_turn_user: dict = defaultdict(dict)                          # 현재 턴인 유저의 정보
+        self.board_size = 11                                                     # game_board size
+        self.turn_timer_task: dict = defaultdict(dict)                           # 비동기로 실행할 매 턴 타이머
+        self.limit_timer_task: dict = defaultdict(dict)                          # 비동기로 실행할 게임 제한 시간 타이머
+        self.game_time = 60                                                      # 게임 제한 시간(초)
+        self.turn_time = 12                                                      # 유저 별 턴 시간(초)
+        self.game_timer_stop: dict = defaultdict(dict)                           # 1이면 게임타이머 3초간 멈춤.
 
     async def get_notification_generator(self):
         while True:
@@ -273,6 +274,10 @@ class Notifier:
 
         count = self.game_time
         while count >= 0:
+            if self.game_timer_stop[room_name] > 0:
+                await asyncio.sleep(3)
+                self.game_timer_stop[room_name] = 0
+
             json_object = {
                 "type": "limit_time_start",
                 "remain_time": count,
@@ -298,9 +303,15 @@ class Notifier:
         self.recent_turn_user[room_name] = {}
         self.turn_timer_task[room_name] = {}
         self.limit_timer_task[room_name] = {}
+        self.game_timer_stop[room_name] = {}
 
-    async def turn_timer(self, room_name, userid):
-        """유저 전체 7초 타이머"""
+    async def turn_timer(self, room_name, userid, remove_count = 0):
+        """유저 전체 12초 타이머"""
+
+        if remove_count > 0:
+            self.game_timer_stop[room_name] = 1
+            await asyncio.sleep(3)
+            self.game_timer_stop[room_name] = 0
 
         count = self.turn_time
         while count >= 0:
@@ -437,6 +448,7 @@ async def websocket_endpoint(
                     notifier.update_user_access_info(room_name)
                     user_lists = get_userid_lists_from_dict(room_name)
 
+                    notifier.game_timer_stop[room_name] = 0
                     notifier.limit_timer_task[room_name] = asyncio.create_task(notifier.game_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))
             elif d["type"] == "get_timer":
                 get_user_turn = notifier.get_user_turn(d, room_name)
@@ -456,7 +468,7 @@ async def websocket_endpoint(
 
                     recent_turn_user = user_lists[notifier.user_turn_count[room_name]]
                     notifier.recent_turn_user[room_name] = recent_turn_user
-                    notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user))     
+                    notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))     
 
 
     except WebSocketDisconnect:
