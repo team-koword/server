@@ -376,6 +376,10 @@ async def websocket_endpoint(
 
             if d["type"] == 'video':
                 data = image_server_request(data).text
+                await notifier.send_to_room(room_name, f"{data}")
+            if d["type"] == "video_off":
+                await notifier._notCam(f"{data}", room_name)
+            if d["type"] == "video_on":
                 await notifier._notCam(f"{data}", room_name)
             elif d["type"] == 'message':
                 await notifier._notify(f"{data}", room_name)
