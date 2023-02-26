@@ -93,6 +93,22 @@ class Notifier:
             self.connections[room_name] = living_connections
         except Exception as exception:
             print("예외는 ", exception)
+
+    async def send_video_to_room(self, room_name, send_info):
+        """같은 방에 있는 사람에게 비디오 보내기. 보낼 때 마다 조건을 체크해야 하니 일반 알림을 보내는 것과 분리함"""
+        try:
+            living_connections = []
+            while len(self.connections[room_name]) > 0:
+                websocket = self.connections[room_name].pop()
+                if websocket.client_state.name == "CONNECTED":
+                    if self.user_access_info[room_name][websocket]["video_status"] == True:
+                        await websocket.send_text(send_info)
+                    living_connections.append(websocket)
+                else:
+                    print(websocket)
+            self.connections[room_name] = living_connections
+        except Exception as exception:
+            print("예외는 ", exception)
         
 
     async def connect(self, websocket: WebSocket, room_name: str):
@@ -394,11 +410,13 @@ async def websocket_endpoint(
 
             if d["type"] == 'video':
                 #data = image_server_request(data).text
-                await notifier.send_to_room(room_name, f"{data}")
-            if d["type"] == "video_off":
+                await notifier.send_video_to_room(room_name, f"{data}")
+            elif d["type"] == "video_off":
                 await notifier._notCam(f"{data}", room_name)
-            if d["type"] == "video_on":
+            elif d["type"] == "video_on":
                 await notifier._notCam(f"{data}", room_name)
+            elif d["type"] == "video_status":
+                notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
             elif d["type"] == 'message':
                 await notifier._notify(f"{data}", room_name)
             elif d["type"] == 'info':
