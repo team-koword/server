@@ -283,7 +283,7 @@ class Notifier:
             await self.send_to_room(room_name, response.text)
 
             # 새로운 게임은 init시 클라이언트에서는 할일이 없어서 init완료 시 바로 next요청
-            if path == "init" and game_mode == "Login":
+            if path == "init" and game_mode == "CoOpGame":
                 self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next"))
 
         except Exception as exception:
@@ -293,6 +293,7 @@ class Notifier:
         """서버에 뿌려줄 단어 매 틱 마다 요청 후 클라이언트에 전달"""
         response = ""
         url = api_host + path
+        body["type"] = "next"
         send_data = self.set_game_server_send_data(game_mode, "next", body, room_name)
         status = "continue"
 
@@ -306,7 +307,7 @@ class Notifier:
 
                 # next를 받아서 해당 초마다 단어를 클라이언트에게 전달
                 await self.send_to_room(room_name, response.text)
-                print(response.headers)
+                print(response.text)
                 status = response.json()["status"]
 
                 await asyncio.sleep(self.new_game_tick)
@@ -327,7 +328,7 @@ class Notifier:
             user_lists = get_userid_lists_from_dict(room_name)
             body["users"] = user_lists
             body["size"] = self.board_size
-            if game_mode == "Login":
+            if game_mode == "CoOpGame":
                 body["tick"] = self.new_game_tick
             send_data = json.dumps(body, ensure_ascii=False, indent="\t")
         elif path == "next":
