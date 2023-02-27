@@ -36,6 +36,7 @@ class Notifier:
         self.game_time = 60                                                      # 게임 제한 시간(초)
         self.turn_time = 12                                                      # 유저 별 턴 시간(초)
         self.game_timer_stop: dict = defaultdict(dict)                           # 1이면 게임타이머 3초간 멈춤.
+        self.new_game_tick = 0.5                                                 # new_game_time_tick
 
     async def get_notification_generator(self):
         while True:
@@ -241,30 +242,29 @@ class Notifier:
                 await notifier.delete_frame(room_name, send_userid)
 
 
-    async def game_server_request(self, room_name, path, method, params):
+    async def game_server_request(self, room_name, path, method, params, game_mode=""):
         """게임서버 호출하여 데이터를 받아옴"""
         print(room_name, path, method)
 
-        api_host = "http://localhost:7777/"                                                  # 서버 주소
+        api_host = ""                                                                        # 서버 주소
         headers = {'Content-Type': 'application/json', 'charset': 'UTF-8', 'Accept': '*/*'}  # http 헤더
-        url = api_host + path                                                                # 상세 경로
+        url = ""                                                                             # 상세 경로
         body = params                                                                        # http body
         response = ""                                                                        # http response
-        user_lists = []                                                                      # 해당 room에 있는 user list
         send_data = ""                                                                       # 보낼 데이터
         
         body["roomId"] = room_name
+
+        # game_mode에 따른 url 설정
+        if game_mode == "WordCard":
+            api_host = "http://localhost:7777/"
+        else:
+            api_host = "http://localhost:7778/"
+
+        url = api_host + path
+
         # 경로에 따른 전달 값 설정
-        if path == "init":
-            #self.update_user_access_info(room_name)
-            user_lists = get_userid_lists_from_dict(room_name)
-            body["users"] = user_lists
-            body["size"] = self.board_size
-            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
-        elif path == "check":
-            send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
-        elif path == "finish":
-            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+        send_data = self.set_game_server_send_data(game_mode, path, body, room_name)
 
         print(url)
         print(send_data)
@@ -282,8 +282,62 @@ class Notifier:
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, response.text)
 
+            # 새로운 게임은 init시 클라이언트에서는 할일이 없어서 init완료 시 바로 next요청
+            if path == "init" and game_mode == "Login":
+                self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next"))
+
         except Exception as exception:
             print(response)
+
+    async def send_next_word(self, method, game_mode, body, headers, room_name, api_host, path):
+        """서버에 뿌려줄 단어 매 틱 마다 요청 후 클라이언트에 전달"""
+        response = ""
+        url = api_host + path
+        send_data = self.set_game_server_send_data(game_mode, "next", body, room_name)
+        status = "continue"
+
+        while status != "finish":
+            # http method에 따른 처리
+            try:
+                if method == 'GET':
+                    response = requests.get(url, headers=headers, data = send_data)
+                elif method == 'POST':
+                    response = requests.post(url, headers=headers, data = send_data)
+
+                # next를 받아서 해당 초마다 단어를 클라이언트에게 전달
+                await self.send_to_room(room_name, response.text)
+                print(response.headers)
+                status = response.json()["status"]
+
+                await asyncio.sleep(self.new_game_tick)
+
+            except Exception as exception:
+                print(response)
+        
+        # 게임 끝났을 때 로직
+        params = { "type": "finish", }
+        await self.game_server_request(room_name, "finish", "POST", params, game_mode)
+        self.delete_resource(room_name)
+
+    def set_game_server_send_data(self, game_mode, path, body, room_name):
+        """게임서버에 보낼 데이터 리턴"""
+
+        send_data = ""
+        if path == "init":
+            user_lists = get_userid_lists_from_dict(room_name)
+            body["users"] = user_lists
+            body["size"] = self.board_size
+            if game_mode == "Login":
+                body["tick"] = self.new_game_tick
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+        elif path == "next":
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+        elif path == "check":
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
+        elif path == "finish":
+            send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+
+        return send_data
 
     async def game_timer(self, room_name, userid):
         """게임 전체 1분 타이머"""
@@ -309,20 +363,16 @@ class Notifier:
             count -= 1
             await asyncio.sleep(1)
 
+        
         params = { "type": "finish", }
-        await self.game_server_request(room_name, "finish", "POST", params)
-        if self.limit_timer_task[room_name] != {}:
-            self.limit_timer_task[room_name].cancel()
-        if self.turn_timer_task[room_name] != {}:
-            self.turn_timer_task[room_name].cancel()
-        self.room_game_start[room_name] = 0
-        self.recent_turn_user[room_name] = {}
-        self.turn_timer_task[room_name] = {}
-        self.limit_timer_task[room_name] = {}
-        self.game_timer_stop[room_name] = {}
+        await self.game_server_request(room_name, "finish", "POST", params, "WordCard")
+        self.delete_resource(room_name)
 
     async def turn_timer(self, room_name, userid, remove_count = 0):
         """유저 전체 12초 타이머"""
+
+        if self.limit_timer_task[room_name] == {}:
+            self.turn_timer_task[room_name].cancel()
 
         if remove_count > 0:
             self.game_timer_stop[room_name] = 1
@@ -353,6 +403,17 @@ class Notifier:
 
             count -= 1
             await asyncio.sleep(1)
+
+    def delete_resource(self, room_name):
+        if self.limit_timer_task[room_name] != {}:
+            self.limit_timer_task[room_name].cancel()
+        if self.turn_timer_task[room_name] != {}:
+            self.turn_timer_task[room_name].cancel()
+        self.room_game_start[room_name] = 0
+        self.recent_turn_user[room_name] = {}
+        self.turn_timer_task[room_name] = {}
+        self.limit_timer_task[room_name] = {}
+        self.game_timer_stop[room_name] = {}
 
 def image_server_request(data):
         """이미지서버 호출하여 데이터를 받아옴"""
@@ -443,12 +504,13 @@ async def websocket_endpoint(
                 path = d["path"]
                 method = d["method"]
                 params = d["params"]
+                game_mode = d["game_mode"]
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
                     if notifier.turn_timer_task[room_name] != {}:
                         print("game_server에서 notifier.turn_timer_task[room_name] 삭제")
                         notifier.turn_timer_task[room_name].cancel()
-                await notifier.game_server_request(room_name, path, method, params)
+                await notifier.game_server_request(room_name, path, method, params, game_mode)
             elif d["type"] == "game_start":
                 print("게임시작하니 버튼 지워주세요.")
                 notifier.user_turn_count[room_name] = 0
@@ -486,7 +548,8 @@ async def websocket_endpoint(
 
                     recent_turn_user = user_lists[notifier.user_turn_count[room_name]]
                     notifier.recent_turn_user[room_name] = recent_turn_user
-                    notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))     
+                    if notifier.limit_timer_task[room_name] != {}:
+                        notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))     
 
 
     except WebSocketDisconnect:
