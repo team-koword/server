@@ -232,7 +232,7 @@ def check(Check: CheckBody) -> CheckBody:
     Room.tries += 1
 
     # if the answer not in dictionary
-    if Check.answer not in WordDict[str(len((Check.answer)))]:
+    if Check.answer not in WordDict[str(len(Check.answer))]:
         Check.remWords = []
         Check.moveInfo = []
         Check.increment = 0
@@ -276,7 +276,7 @@ def check(Check: CheckBody) -> CheckBody:
     print(f"try {C.Cyan}{Room.tries}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
     print(f"{C.Cyan}{len(Check.remWords)}{C.End} words removed: {C.Cyan}{Check.remWords}{C.End}")
     print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
-    print(f"top word in {Room.height - getRow(min(Room.wordMap.values()), Room.width)} th rows\n\n")
+    print(f"top word in {C.Cyan}{Room.height - getRow(min(Room.wordMap.values()), Room.width)}{C.End} th rows\n\n")
     print(f"{C.Blue}ANSWER CHECKED{C.End}\n\n")
 
     return Check
@@ -309,16 +309,16 @@ def finish(Finish: FinishBody) -> FinishBody:
 
     # answer log
     Finish.answerLog = Room.answerLog
-    
-    # total count for removed words
-    TOTAL = sum(score[2] for score in Finish.scores)
 
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
     print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.tries}{C.End} tries")
-    print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
+    print(f"total {C.Cyan}{sum(score[2] for score in Finish.scores)}{C.End} words removed")
     for rank, user, score in Finish.scores:
         print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
     print(f"{C.Blue}GAME FINISHED{C.End}\n\n")
+    
+    # delete room data
+    del(Rooms[Finish.roomId])
     
     return Finish

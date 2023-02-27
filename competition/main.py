@@ -294,15 +294,15 @@ def finish(Finish: FinishBody) -> FinishBody:
     # answer log
     Finish.answerLog = Room.answerLog
     
-    # total count for removes words
-    TOTAL = sum(score[2] for score in Finish.scores)
-    
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
     print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.turns}{C.End} turns")
-    print(f"total {C.Cyan}{TOTAL}{C.End} words removes")
+    print(f"total {C.Cyan}{sum(score[2] for score in Finish.scores)}{C.End} words removes")
     for rank, user, score in Finish.scores:
         print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
     print(f"{C.Magenta}GAME FINISHED{C.End}\n\n")
+    
+    # delete room data
+    del(Rooms[Finish.roomId])
     
     return Finish
