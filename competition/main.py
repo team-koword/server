@@ -243,6 +243,17 @@ def check(Check: CheckBody) -> CheckBody:
     Check.table = Room.gameTable
 
     # print at terminal(for test)
+    for i, move in enumerate(Check.moves):
+        if i == 0:
+            print(f"removes: {move}")
+        elif i == 1:
+            print(f"falls: {move}")
+        elif i == 2:
+            print(f"adds: {move}")
+        elif i == 3:
+            print(f"(reset)removes: {move}")
+        elif i == 4:
+            print(f"(reset)adds: {move}")
     printGameTable(Room.gameTable, Room.height, Room.width)
 
     end = time.time()

@@ -286,11 +286,11 @@ def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
     # TODO: add new characters in empty cells
     adds = list()
     getGameData(CharDict, WordDict, FindDict, gameTable, wordMap, adds, height, width)
-    
+
     # update moves
     moves.append(removes)
-    moves.append(sorted(falls, key=lambda x: x[1]))
-    moves.append(sorted(adds, key=lambda x: x[1]))
+    moves.append(sorted(falls, key=lambda x: -x[1]))
+    moves.append(sorted(adds, key=lambda x: -x[1]))
 
     return
 
