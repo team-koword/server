@@ -1,5 +1,6 @@
 # print colored in terminal
-from .colored_terminal import C
+# from .colored_terminal import C
+from colored_terminal import C
 
 
 ##### COOPERATION MODE SERVER #####
@@ -46,7 +47,8 @@ print(f"{C.Blue}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
-from .coop_mode_modeling import *
+# from .coop_mode_modeling import *
+from coop_mode_modeling import *
 
 
 
@@ -74,7 +76,8 @@ Rooms = defaultdict(RoomData)
 
 
 # game functions module
-from .coop_mode_functions import *
+# from .coop_mode_functions import *
+from coop_mode_functions import *
 
 
 
@@ -174,12 +177,11 @@ def next(Next: NextBody) -> NextBody:
     Next.length = randint(2, 5)
     while True:
         Next.word = choice(WordDict[str(Next.length)])
-        if Next.word not in Room.wordMap.keys():
+        if Next.word not in Room.wordMap:
             break
     Next.left = randint(0, Room.width - Next.length)
     
     # set game information with dummy value for fallWord function
-    Next.word = ""
     for i in range(len(Next.word)):
         Room.gameTable[Next.left - Room.width + i] = Next.word[i]
     Room.wordMap[Next.word] = Next.left - Room.width
@@ -213,7 +215,7 @@ class CheckBody(BaseModel):
     roomId: str
     user: str
     answer: str
-    remWords: Optional[list] = None # [word, ...]
+    remWords: Optional[list] = None     # [word, ...]
     moveInfo: Optional[list] = None     # [[word: str, fall: int], ...]
     increment: Optional[int] = None
 # check and remove words similar with the answer
