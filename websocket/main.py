@@ -297,7 +297,7 @@ class Notifier:
         send_data = self.set_game_server_send_data(game_mode, "next", body, room_name)
         status = "continue"
 
-        while status != "finish":
+        while status != "gameover":
             # http method에 따른 처리
             try:
                 if method == 'GET':
