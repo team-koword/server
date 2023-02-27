@@ -96,7 +96,6 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
         # TODO: put data in wordMap {word: [locs], ...}
         if dir != NODIR:
             wordMap[word] = list(range(loc, loc + len(word) * dir, dir))
-
         # put each character and connection of the word
         for i, char in enumerate(word):
             if dir == NODIR:
@@ -110,16 +109,17 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                 else:
                     conn = "LR" if dir == RIGHT else "UD"
                 gameTable[loc + i * dir] = [char, conn]
+        return
 
-            # TODO: put data in moves [[dep, arr, char], ...]
-            # calculate dep
+    # put data in moves [[dep, arr, char], ...]
+    def _move(gameTable: dict, moves: list, loc: int, word: str, dir: int) -> None:
+        for i, char in enumerate(word):
             arr = loc + i * dir
-            fall = getDownDist(gameTable, loc + (len(word) - 1) * dir, CHAR, height, width)
+            fall = getDownDist(gameTable, loc + (len(word) - 1) * dir, CHAR, 
+                               height, width)
             depth = 1 if dir == RIGHT else len(word)
             dep = arr - (getRow(loc, width) + fall + depth) * width
             moves.append([dep, arr, char])
-
-        return
 
     rightCnt, downCnt, nodirCnt = 0, 0, 0
     # TODO: fill empty cells
@@ -145,6 +145,7 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                     break
         # put each character and connection of the word
         _put(gameTable, wordMap, moves, loc, word, dir)
+        _move(gameTable, moves, loc, word, dir)
 
     # TODO: find single characters can be a word with other single character
     # get word candidates in direction
