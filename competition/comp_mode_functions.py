@@ -211,12 +211,11 @@ def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
     # TODO: remove words in remWords
     removes = list()
     for i, word in enumerate(remWords):
-        if word in wordMap:
-            locs = wordMap.pop(word)
-            for j, loc in enumerate(locs):
-                if gameTable[loc][CHAR] != EMPTY:
-                    removes.append([loc, SIZE + i, word[j]])
-                    gameTable[loc] = [EMPTY, DISCNT]
+        locs = wordMap.pop(word)
+        for j, loc in enumerate(locs):
+            if gameTable[loc][CHAR] != EMPTY:
+                removes.append([loc, SIZE + i, word[j]])
+                gameTable[loc] = [EMPTY, DISCNT]
 
     # TODO: fall characters remaining on gameTable
     # get word by loc from wordMap
@@ -255,9 +254,9 @@ def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                     gameTable[locs[i]][CONN] = DISCNT
             # update gameTable and moves
             for i in range(len(word) - 1, -1, -1):
-                falls.append([locs[i], locs[i] + _falls[i] * width, word[i]])
                 if _falls[i] == 0:
                     continue
+                falls.append([locs[i], locs[i] + _falls[i] * width, word[i]])
                 gameTable[locs[i] + _falls[i] * width] = gameTable[locs[i]]
                 gameTable[locs[i]] = [EMPTY, DISCNT]
 
