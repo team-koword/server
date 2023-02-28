@@ -127,6 +127,8 @@ def init(Init: InitBody) -> InitBody:
 
     # get room data and initialize
     global Rooms
+    # initialize room data
+    Rooms[Init.roomId].__init__()
     Room = Rooms[Init.roomId]
     Room.roomId = Init.roomId
     Room.tries = 0

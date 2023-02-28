@@ -140,6 +140,8 @@ def init(Init: InitBody) -> InitBody:
 
     # get room data and initialize
     global Rooms, CharDict, WordDict, FindDict
+    # initialize room data
+    Rooms[Init.roomId].__init__()
     Room = Rooms[Init.roomId]
     Room.roomId = Init.roomId
     Room.turns = 0
@@ -265,6 +267,7 @@ def check(Check: CheckBody) -> CheckBody:
     print(f"{C.Magenta}ANSWER CHECKED{C.End}\n\n")
 
     return Check
+
 
 # request and response body
 class FinishBody(BaseModel):
