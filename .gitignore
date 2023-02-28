@@ -4,4 +4,4 @@ venv
 .venv
 __pycache__
 *.bin
-fastText
+fastText*
