@@ -1,6 +1,5 @@
-from typing import Optional, Union, Tuple, TypeVar
+from typing import Tuple
 from random import choice, randint
-from collections import defaultdict
 
 
 # global variables
@@ -76,8 +75,6 @@ def initGameTable(gameTable: dict, height: int, width: int) -> None:
 def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                 gameTable: dict, wordMap: dict, moves: list, 
                 height: int, width: int) -> None:
-    SIZE = height * width
-    RIGHT, DOWN, NODIR = 1, width, 0
     # get direction right or down with distances in each direction
     def _dir(rightDist: int, downDist: int) -> int:
         ABLE, UNABLE = 2, 1
@@ -89,6 +86,17 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             return DOWN
         else:
             return NODIR
+
+    # get a random word(or random character if unable to put a word)
+    def _word(CharDict: dict, WordDict: dict, dir: int) -> str:
+        if dir == NODIR:
+            word = getRandChar(CharDict)
+        else:
+            while True:
+                word = getRandWord(WordDict, dist)
+                if word not in wordMap:
+                    break
+        return word
 
     # put gameTable, wordMap, moves with the word in the direction
     def _put(gameTable: dict, wordMap: dict, moves: list, 
@@ -121,7 +129,63 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             dep = arr - (getRow(loc, width) + fall + depth) * width
             moves.append([dep, arr, char])
 
-    rightCnt, downCnt, nodirCnt = 0, 0, 0
+    # find single characters can be a word with other single character
+    def _find(FindDict: dict, gameTable: dict, wordMap: dict, 
+              height: int, width: int) -> None:
+        # get word candidates in direction
+        def __cand(gameTable: dict, loc: int, dir: int, dist: int) -> list:
+            words, word = list(), str()
+            for length in range(dist):
+                word += gameTable[loc + length * dir][CHAR]
+                if length >= 1:
+                    words.append(word)
+            return words[::-1]
+
+        # find each single character if able to be a word
+        for loc in range(SIZE):
+            # continue if the cell already connected
+            if gameTable[loc][CONN] != DISCNT:
+                continue
+            # get a random direction and distance
+            rightDist = getRightDist(gameTable, loc, CONN, height, width) + 1
+            downDist = getDownDist(gameTable, loc, CONN, height, width) + 1
+            dir = _dir(rightDist, downDist)
+            dist = rightDist if dir == RIGHT else downDist
+            # unable to put a word
+            if dir == NODIR:
+                continue
+            # get word candidates
+            cand = __cand(gameTable, loc, dir, dist)
+            # check if possible to put a word
+            for word in cand:
+                if word[0] not in FindDict:
+                    continue
+                if str(len(word)) in FindDict[word[0]] \
+                    and word in FindDict[word[0]][str(len(word))]:
+                    _put(gameTable, wordMap, moves, loc, word, dir)
+                    continue
+            # try again in the other direction
+            dir = list({RIGHT, DOWN} - {dir})[0]
+            dist = rightDist if dir == RIGHT else downDist
+            if dist < 2:
+                continue
+            # get word candidates
+            cand = __cand(gameTable, loc, dir, dist)
+            # check if possible to put a word
+            for word in cand:
+                if word[0] not in FindDict:
+                    continue
+                if str(len(word)) in FindDict[word[0]] \
+                    and word in FindDict[word[0]][str(len(word))]:
+                    _put(gameTable, wordMap, moves, loc, word, dir)
+
+
+    # getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
+    #             gameTable: dict, wordMap: dict, moves: list, 
+    #             height: int, width: int) -> None:
+    SIZE = height * width
+    RIGHT, DOWN, NODIR = 1, width, 0
+
     # TODO: fill empty cells
     for loc in range(SIZE):
         # continue if the cell already filled
@@ -132,81 +196,89 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
         downDist = getDownDist(gameTable, loc, CHAR, height, width) + 1
         dir = _dir(rightDist, downDist)
         dist = rightDist if dir == RIGHT else downDist
-        if dir == RIGHT: rightCnt += 1
-        elif dir == DOWN: downCnt += 1
 
-        # get a random word(or random character if unable to put a word)
-        if dir == NODIR:
-            word = getRandChar(CharDict)
-        else:
-            while True:
-                word = getRandWord(WordDict, dist)
-                if word not in wordMap:
-                    break
+        # get a random word
+        word = _word(CharDict, WordDict, dir)
+
         # put each character and connection of the word
         _put(gameTable, wordMap, moves, loc, word, dir)
         _move(gameTable, moves, loc, word, dir)
-
-    # TODO: find single characters can be a word with other single character
-    # get word candidates in direction
-    def _cand(gameTable: dict, loc: int, dir: int, dist: int) -> list:
-        words, word = list(), str()
-        for length in range(dist):
-            word += gameTable[loc + length * dir][CHAR]
-            if length >= 1:
-                words.append(word)
-        return words[::-1]
-
-    for loc in range(SIZE):
-        # continue if the cell already connected
-        if gameTable[loc][CONN] != DISCNT:
-            continue
-        # get a random direction and distance
-        rightDist = getRightDist(gameTable, loc, CONN, height, width) + 1
-        downDist = getDownDist(gameTable, loc, CONN, height, width) + 1
-        dir = _dir(rightDist, downDist)
-        dist = rightDist if dir == RIGHT else downDist
-        # unable to put a word
-        if dir == NODIR:
-            nodirCnt += 1
-            continue
-        # get word candidates
-        cand = _cand(gameTable, loc, dir, dist)
-        # check if possible to put a word
-        for word in cand:
-            if word[0] not in FindDict:
-                continue
-            if str(len(word)) in FindDict[word[0]] \
-                and word in FindDict[word[0]][str(len(word))]:
-                if dir == RIGHT: rightCnt += 1
-                elif dir == DOWN: downCnt += 1
-                _put(gameTable, wordMap, moves, loc, word, dir)
-                continue
-        # try again in the other direction
-        dir = list({RIGHT, DOWN} - {dir})[0]
-        dist = rightDist if dir == RIGHT else downDist
-        if dist < 2:
-            continue
-                # get word candidates
-        cand = _cand(gameTable, loc, dir, dist)
-        # check if possible to put a word
-        for word in cand:
-            if word[0] not in FindDict:
-                continue
-            if str(len(word)) in FindDict[word[0]] \
-                and word in FindDict[word[0]][str(len(word))]:
-                if dir == RIGHT: rightCnt += 1
-                elif dir == DOWN: downCnt += 1
-                _put(gameTable, wordMap, moves, loc, word, dir)
+    
+    # TODO: try to get words with single characters
+    _find(FindDict, gameTable, wordMap, height, width)
 
     moves.sort(key=lambda x: x[1])
-    # print(f"rightCnt, downCnt, nodirCnt: {rightCnt}, {downCnt}, {nodirCnt}")
     return
 
 
 def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                    gameTable: dict, wordMap: dict, 
                    remWords: list, moves: list, height: int, width: int) -> None:
+    # get word by loc from wordMap
+    def _get(wordMap: dict, loc: int) -> Tuple[str, list]:
+        for word, locs in wordMap.items():
+            if locs[-1] == loc:
+                return word, locs[:]
+        return "", []
+
+    # fall a rightwards word: check word still connected after falls
+    def _rightwards(gameTable: dict, wordMap: dict, falls: list, loc: int, 
+                    height: int, width: int) -> None:
+        # get falling distances of each character
+        word, locs = _get(wordMap, loc)
+        _falls = list()
+        for i in range(len(word)):
+            _falls.append(getDownDist(gameTable, locs[i], CHAR, height, width))
+        # word still connected
+        if _falls.count(_falls[0]) == len(word):
+            # continue if word not falling
+            if _falls[0] == 0:
+                return
+            # update locations in wordMap
+            for i in range(len(word)):
+                    wordMap[word][i] += _falls[0] * width
+        # if word disconnected, remove word in wordMap and update connection
+        else:
+            del(wordMap[word])
+            for i in range(len(word)):
+                gameTable[locs[i]][CONN] = DISCNT
+        # update gameTable and moves
+        for i in range(len(word) - 1, -1, -1):
+            if _falls[i] == 0:
+                continue
+            falls.append([locs[i], locs[i] + _falls[i] * width, word[i]])
+            gameTable[locs[i] + _falls[i] * width] = gameTable[locs[i]]
+            gameTable[locs[i]] = [EMPTY, DISCNT]
+
+    # fall a downwards word: entire word falls
+    def _downwards(gameTable: dict, wordMap: dict, falls: list, loc: int, 
+                   height: int, width: int) -> None:
+        # get falling distance of whole word
+        word, locs = _get(wordMap, loc)
+        fall = getDownDist(gameTable, loc, CHAR, height, width)
+        if fall == 0:
+            return
+        # update gameTable and moves
+        for i in range(len(word) - 1, -1, -1):
+            falls.append([locs[i], locs[i] + fall * width, word[i]])
+            gameTable[locs[i] + fall * width] = gameTable[locs[i]]
+            gameTable[locs[i]] = [EMPTY, DISCNT]
+            wordMap[word][i] += fall * width
+
+    # fall a single character
+    def _nowards(gameTable: dict, falls: list, loc: int, 
+                 height: int, width: int) -> None:
+        fall = getDownDist(gameTable, loc, CHAR, height, width)
+        if fall == 0:
+            return
+        falls.append([loc, loc + fall * width, gameTable[loc][CHAR]])
+        gameTable[loc + fall * width] = gameTable[loc]
+        gameTable[loc] = [EMPTY, DISCNT]
+
+
+    # updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
+    #                gameTable: dict, wordMap: dict, 
+    #                remWords: list, moves: list, height: int, width: int) -> None:
     SIZE = height * width
 
     # TODO: remove words in remWords
@@ -217,76 +289,30 @@ def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             if gameTable[loc][CHAR] != EMPTY:
                 removes.append([loc, SIZE + i, word[j]])
                 gameTable[loc] = [EMPTY, DISCNT]
+    # print("removed")
+    # printGameTable(gameTable, height, width)
 
     # TODO: fall characters remaining on gameTable
-    # get word by loc from wordMap
-    def _get(wordMap: dict, loc: int) -> Tuple[str, list]:
-        for word, locs in wordMap.items():
-            if locs[-1] == loc:
-                return word, locs[:]
-        return "", []
-
     falls = list()
     for loc in range(SIZE - width - 1, - 1, -1):
         # continue if cell is empty or not last of word(include single character)
         if gameTable[loc][CHAR] == EMPTY \
             or gameTable[loc][CONN] not in ["L", "U", "X"]:
             continue
-
-        # fall a rightwards word: check word still connected after falls
         if gameTable[loc][CONN] == "L":
-            # get falling distances of each character
-            word, locs = _get(wordMap, loc)
-            _falls = list()
-            for i in range(len(word)):
-                _falls.append(getDownDist(gameTable, locs[i], CHAR, height, width))
-            # word still connected
-            if _falls.count(_falls[0]) == len(word):
-                # continue if word not falling
-                if _falls[0] == 0:
-                    continue
-                # update locations in wordMap
-                for i in range(len(word)):
-                        wordMap[word][i] += _falls[0] * width
-            # if word disconnected, remove word in wordMap and update connection
-            else:
-                del(wordMap[word])
-                for i in range(len(word)):
-                    gameTable[locs[i]][CONN] = DISCNT
-            # update gameTable and moves
-            for i in range(len(word) - 1, -1, -1):
-                if _falls[i] == 0:
-                    continue
-                falls.append([locs[i], locs[i] + _falls[i] * width, word[i]])
-                gameTable[locs[i] + _falls[i] * width] = gameTable[locs[i]]
-                gameTable[locs[i]] = [EMPTY, DISCNT]
-
-        # fall a downwards word: entire word falls
+            _rightwards(gameTable, wordMap, falls, loc, height, width)
         elif gameTable[loc][CONN] == "U":
-            # get falling distance of whole word
-            word, locs = _get(wordMap, loc)
-            fall = getDownDist(gameTable, loc, CHAR, height, width)
-            if fall == 0:
-                continue
-            # update gameTable and moves
-            for i in range(len(word) - 1, -1, -1):
-                falls.append([locs[i], locs[i] + fall * width, word[i]])
-                gameTable[locs[i] + fall * width] = gameTable[locs[i]]
-                gameTable[locs[i]] = [EMPTY, DISCNT]
-                wordMap[word][i] += fall * width
-
-        # fall a single character
+            _downwards(gameTable, wordMap, falls, loc, height, width)
         else:
-            fall = getDownDist(gameTable, loc, CHAR, height, width)
-            if fall == 0:
-                continue
-            falls.append([loc, loc + fall * width, gameTable[loc][CHAR]])
-            gameTable[loc + fall * width] = gameTable[loc]
-            gameTable[loc] = [EMPTY, DISCNT]
+            _nowards(gameTable, falls, loc, height, width)
+    # print("falled")
+    # printGameTable(gameTable, height, width)
 
     # TODO: add new characters in empty cells
     adds = list()
     getGameData(CharDict, WordDict, FindDict, gameTable, wordMap, adds, height, width)
+    # print("added")
+    # printGameTable(gameTable, height, width)
 
     # update moves
     moves.append(removes)

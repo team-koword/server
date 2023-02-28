@@ -58,7 +58,7 @@ from coop_mode_modeling import *
 
 
 ## game data
-from typing import Optional, TypeVar
+from typing import Optional
 from collections import defaultdict
 # each room data
 class RoomData:

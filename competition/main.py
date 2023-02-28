@@ -66,7 +66,7 @@ from comp_mode_modeling import *
 
 
 ## game data
-from typing import Optional, TypeVar
+from typing import Optional
 from collections import defaultdict
 EMPTY, DISCNT = "  ", "X"
 CHAR, CONN = 0, 1
