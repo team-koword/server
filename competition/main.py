@@ -228,16 +228,18 @@ def check(Check: CheckBody) -> CheckBody:
     Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
 
     # reset table if words in table less than standard count
-    MIN = 20
+    MIN = 30
     if len(list(Room.wordMap.keys())) < MIN:
         # set move information for all cells -> empty
         SIZE = Room.height * Room.width
         removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
         Check.moves.append(removes)
-        # reset gameTable
+        # initialize gameTable and wordMap
         Room.gameTable = defaultdict(list)
         initGameTable(Room.gameTable, Room.height, Room.width)
+        Room.wordMap = defaultdict(list)
         adds = list()
+        # get game data again
         getGameData(CharDict, WordDict, FindDict, 
                     Room.gameTable, Room.wordMap, adds, 
                     Room.height, Room.width)
