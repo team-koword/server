@@ -6,6 +6,7 @@ from starlette.websockets import WebSocketDisconnect
 from starlette.middleware.cors import CORSMiddleware
 import requests
 import asyncio
+import aiohttp
 
 
 app = FastAPI()
@@ -275,12 +276,13 @@ class Notifier:
             if method == 'GET':
                 response = requests.get(url, headers=headers, data = send_data)
             elif method == 'POST':
-                response = requests.post(url, headers=headers, data = send_data)
-            
-            print(response.text)
-            
+                #response = requests.post(url, headers=headers, data = send_data)
+                response = await self.make_post_request(url, headers, send_data)
+
+            print(response)
+
             # 같은 방에 있는 사람에게 뿌려주기
-            await self.send_to_room(room_name, response.text)
+            await self.send_to_room(room_name, response)
 
             # 새로운 게임은 init시 클라이언트에서는 할일이 없어서 init완료 시 바로 next요청
             if path == "init" and game_mode == "CoOpGame":
@@ -288,6 +290,11 @@ class Notifier:
 
         except Exception as exception:
             print(response)
+
+    async def make_post_request(self, url, headers, data):
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, data=data) as response:
+                return await response.text()
 
     async def send_next_word(self, method, game_mode, body, headers, room_name, api_host, path):
         """서버에 뿌려줄 단어 매 틱 마다 요청 후 클라이언트에 전달"""
@@ -334,7 +341,10 @@ class Notifier:
         elif path == "next":
             send_data = json.dumps(body, ensure_ascii=False, indent="\t")
         elif path == "check":
-            send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
+            if game_mode == "CoOpGame":
+                send_data = json.dumps(body, ensure_ascii=False, indent="\t")
+            elif game_mode == "WordCard":
+                send_data = json.dumps(body, ensure_ascii=False, indent="\t").encode('utf-8')
         elif path == "finish":
             send_data = json.dumps(body, ensure_ascii=False, indent="\t")
 
@@ -509,8 +519,9 @@ async def websocket_endpoint(
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
                     if notifier.turn_timer_task[room_name] != {}:
-                        print("game_server에서 notifier.turn_timer_task[room_name] 삭제")
-                        notifier.turn_timer_task[room_name].cancel()
+                        if d["game_mode"] == "WordCard":
+                            print("game_server에서 notifier.turn_timer_task[room_name] 삭제")
+                            notifier.turn_timer_task[room_name].cancel()
                 await notifier.game_server_request(room_name, path, method, params, game_mode)
             elif d["type"] == "game_start":
                 print("게임시작하니 버튼 지워주세요.")
