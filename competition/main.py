@@ -18,11 +18,13 @@ START = time.time()
 
 
 ## words data
+# get directory real path
+import os
+dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+
 # get json file function
 def get_json(fileName: str) -> dict:
-    import os
     import json
-    dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
     with open(dirPath + fileName, "r", encoding="utf8") as file:
         json_file = json.load(file)
     return json_file
@@ -47,7 +49,7 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model("./model.bin")
+    simModel = fasttext.load_model(dirPath + "./model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:

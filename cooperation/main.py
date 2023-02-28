@@ -18,13 +18,17 @@ START = time.time()
 
 
 ## words data
+# get directory real path
+import os
+dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+
 # get json data
 print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
 start = time.time()
 
 import json
 try:
-    with open("./words.json", "r", encoding="utf8") as file:
+    with open(dirPath + "./words.json", "r", encoding="utf8") as file:
         WordDict = json.load(file)
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
@@ -37,7 +41,7 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model("./model.bin")
+    simModel = fasttext.load_model(dirPath + "./model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
