@@ -448,6 +448,7 @@ notifier = Notifier()
 async def websocket_endpoint(
     websocket: WebSocket, room_name, background_tasks: BackgroundTasks
 ):
+
     
     print()
     print()
@@ -561,7 +562,9 @@ async def websocket_endpoint(
                     recent_turn_user = user_lists[notifier.user_turn_count[room_name]]
                     notifier.recent_turn_user[room_name] = recent_turn_user
                     if notifier.limit_timer_task[room_name] != {}:
-                        notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))     
+                        notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))
+            elif d["type"] == "change_game":
+                await notifier.send_to_room(room_name, f"{data}")
 
 
     except WebSocketDisconnect:
