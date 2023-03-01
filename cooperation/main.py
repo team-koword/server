@@ -240,7 +240,8 @@ def check(Check: CheckBody) -> CheckBody:
     Room.tries += 1
 
     # if the answer not in dictionary
-    if Check.answer not in WordDict[str(len(Check.answer))]:
+    if str(len(Check.answer)) not in WordDict \
+        or Check.answer not in WordDict[str(len(Check.answer))]:
         Check.remWords = []
         Check.moveInfo = []
         Check.increment = 0
@@ -248,6 +249,7 @@ def check(Check: CheckBody) -> CheckBody:
 
     # get words to remove similar with the answer
     Check.remWords = getSimWords(simModel, list(Room.wordMap.keys()), Check.answer)
+
     # lock the answer if exists in word table
     if Check.answer in Check.remWords:
         Check.remWords.remove(Check.answer)
@@ -268,7 +270,8 @@ def check(Check: CheckBody) -> CheckBody:
                     Check.moveInfo.append([word, fall])
 
     # update answer log
-    Room.answerLog.append([Room.tries, Check.answer, Check.remWords])
+    if Check.remWords:
+        Room.answerLog.append([Room.tries, Check.answer, Check.remWords])
     
     # update score
     increment = len(Check.remWords)
