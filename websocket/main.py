@@ -110,7 +110,7 @@ class Notifier:
                     print(websocket)
             self.connections[room_name] = living_connections
         except Exception as exception:
-            print("예외는 ", exception)
+            print("예외는12 ", exception)
         
 
     async def connect(self, websocket: WebSocket, room_name: str):
@@ -118,7 +118,8 @@ class Notifier:
 
         await websocket.accept()
         if self.connections[room_name] == {} or len(self.connections[room_name]) == 0:
-            self.connections[room_name] = []
+            if self.room_info[room_name]["is_start"] != 1:
+                self.connections[room_name] = []
         self.connections[room_name].append(websocket)
 
         print(f"CONNECTIONS : {self.connections[room_name]}")
@@ -493,23 +494,29 @@ async def websocket_endpoint(
             elif d["type"] == 'message':
                 await notifier._notify(f"{data}", room_name)
             elif d["type"] == 'info':
-                notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
-                notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
-                print(notifier.user_access_info[room_name])
-
-                # 잘 남겨두자 usde_lists 뽑아내는거
-                # user_ids = []
-                # for key in notifier.user_access_info:
-                #     inner_dict = notifier.user_access_info[key]
-                #     for ws, info in inner_dict.items():
-                #         user_ids.append(info['userid'])
-
-                if notifier.room_info[room_name]["game_mode"]:
-                    d["game_mode"] = notifier.room_info[room_name]["game_mode"]
+                if notifier.room_info[room_name]["is_start"] == 1:
+                    print("info - 진행중인 방은 접근 불가. 방이름은 = ", room_name)
+                    go_back_data = {"type":"game_ing"} 
+                    go_back_data = json.dumps(go_back_data)
+                    await websocket.send_text(go_back_data)
                 else:
-                    d["game_mode"] = ""
+                    notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
+                    notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
+                    print(notifier.user_access_info[room_name])
 
-                await notifier.insert_user_access_info(json.dumps(d), room_name, d["userid"], websocket)
+                    # 잘 남겨두자 usde_lists 뽑아내는거
+                    # user_ids = []
+                    # for key in notifier.user_access_info:
+                    #     inner_dict = notifier.user_access_info[key]
+                    #     for ws, info in inner_dict.items():
+                    #         user_ids.append(info['userid'])
+
+                    if notifier.room_info[room_name]["game_mode"]:
+                        d["game_mode"] = notifier.room_info[room_name]["game_mode"]
+                    else:
+                        d["game_mode"] = ""
+
+                    await notifier.insert_user_access_info(json.dumps(d), room_name, d["userid"], websocket)
             elif d["type"] == 'send_user_turn':
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
