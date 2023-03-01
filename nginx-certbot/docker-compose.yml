@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+  gameserver:
+    build:
+        context: ../game/server/competition
+        dockerfile: Dockerfile
+    ports:
+      - 7777:7777
+        #networks:
+        #- app-network
+  new_game:
+    build:
+        context: ../game/server/cooperation
+        dockerfile: Dockerfile
+    ports:
+      - 7778:7778
+        #networks:
+        #- app-network
+  fastapi:
+    build:
+        context: ../server/websocket
+        dockerfile: Dockerfile
+        #volumes:
+        #- /tmp/fapi.sock:/tmp/fapi.sock
+    ports:
+      - 8000:8000
+        #networks:
+        #- app-network
+        #command: bash -c "gunicorn --bind unix:/tmp/fapi.sock main:app --worker-class uvicorn.workers.UvicornWorker"
+  nginx:
+    image: nginx:1.15-alpine
+    restart: unless-stopped
+    #links:
+    #- fastapi
+    volumes:
+      - ./data/nginx/app.conf:/etc/nginx/conf.d/default.conf
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+        #networks:
+        #- app-network
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    #depends_on:
+    #- fastapi
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+
+networks:
+  app-network:
+    driver: bridge
