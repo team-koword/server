@@ -180,7 +180,9 @@ def next(Next: NextBody) -> NextBody:
 
     # get random word with random length, which falls at random column
     from random import choice, randint
-    Next.length = randint(2, 5)
+    # Next.length = randint(2, 5)
+    CNT2, CNT3, CNT4, CNT5 = 3, 3, 2, 1
+    Next.length = choice([2] * CNT2 + [3] * CNT3 + [4] * CNT4 + [5] * CNT5)
     while True:
         Next.word = choice(WordDict[str(Next.length)])
         if Next.word not in Room.wordMap:

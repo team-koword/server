@@ -75,6 +75,10 @@ def initGameTable(gameTable: dict, height: int, width: int) -> None:
 def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                 gameTable: dict, wordMap: dict, moves: list, 
                 height: int, width: int) -> None:
+    # local variables
+    SIZE = height * width
+    RIGHT, DOWN, NODIR = 1, width, 0
+
     # get direction right or down with distances in each direction
     def _dir(rightDist: int, downDist: int) -> int:
         ABLE, UNABLE = 2, 1
@@ -130,16 +134,20 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             moves.append([dep, arr, char])
 
     # find single characters can be a word with other single character
-    def _find(FindDict: dict, gameTable: dict, wordMap: dict, 
+    def _recycle(FindDict: dict, gameTable: dict, wordMap: dict, 
               height: int, width: int) -> None:
         # get word candidates in direction
-        def __cand(gameTable: dict, loc: int, dir: int, dist: int) -> list:
+        def __find(FindDict: dict, gameTable: dict, 
+                   loc: int, dir: int, dist: int) -> str:
             words, word = list(), str()
             for length in range(dist):
                 word += gameTable[loc + length * dir][CHAR]
-                if length >= 1:
+                if not 1 < length < 5:
+                    continue
+                if word[0] in FindDict and str(len(word)) in FindDict[word[0]] \
+                    and word in FindDict[word[0]][str(len(word))]:
                     words.append(word)
-            return words[::-1]
+            return words[-1] if words else ""
 
         # find each single character if able to be a word
         for loc in range(SIZE):
@@ -154,38 +162,23 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             # unable to put a word
             if dir == NODIR:
                 continue
-            # get word candidates
-            cand = __cand(gameTable, loc, dir, dist)
             # check if possible to put a word
-            for word in cand:
-                if word[0] not in FindDict:
-                    continue
-                if str(len(word)) in FindDict[word[0]] \
-                    and word in FindDict[word[0]][str(len(word))]:
-                    _put(gameTable, wordMap, moves, loc, word, dir)
-                    continue
+            word = __find(FindDict, gameTable, loc, dir, dist)
+            if word:
+                _put(gameTable, wordMap, moves, loc, word, dir)
+                continue
             # try again in the other direction
             dir = list({RIGHT, DOWN} - {dir})[0]
             dist = rightDist if dir == RIGHT else downDist
             if dist < 2:
                 continue
-            # get word candidates
-            cand = __cand(gameTable, loc, dir, dist)
             # check if possible to put a word
-            for word in cand:
-                if word[0] not in FindDict:
-                    continue
-                if str(len(word)) in FindDict[word[0]] \
-                    and word in FindDict[word[0]][str(len(word))]:
-                    _put(gameTable, wordMap, moves, loc, word, dir)
+            word = __find(FindDict, gameTable, loc, dir, dist)
+            if word:
+                _put(gameTable, wordMap, moves, loc, word, dir)
 
 
-    # getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
-    #             gameTable: dict, wordMap: dict, moves: list, 
-    #             height: int, width: int) -> None:
-    SIZE = height * width
-    RIGHT, DOWN, NODIR = 1, width, 0
-
+    # getGameData(CharDict, WordDict, FindDict, gameTable, wordMap, moves, height, width)
     # TODO: fill empty cells
     for loc in range(SIZE):
         # continue if the cell already filled
@@ -205,7 +198,7 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
         _move(gameTable, moves, loc, word, dir)
     
     # TODO: try to get words with single characters
-    _find(FindDict, gameTable, wordMap, height, width)
+    _recycle(FindDict, gameTable, wordMap, height, width)
 
     moves.sort(key=lambda x: x[1])
     return
@@ -214,6 +207,9 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
 def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
                    gameTable: dict, wordMap: dict, 
                    remWords: list, moves: list, height: int, width: int) -> None:
+    # local variables
+    SIZE = height * width
+
     # get word by loc from wordMap
     def _get(wordMap: dict, loc: int) -> Tuple[str, list]:
         for word, locs in wordMap.items():
@@ -276,11 +272,7 @@ def updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
         gameTable[loc] = [EMPTY, DISCNT]
 
 
-    # updateGameData(CharDict: dict, WordDict: dict, FindDict: dict,
-    #                gameTable: dict, wordMap: dict, 
-    #                remWords: list, moves: list, height: int, width: int) -> None:
-    SIZE = height * width
-
+    # updateGameData(CharDict, WordDict, FindDict, gameTable, wordMap, remWords, moves, height, width) -> None:
     # TODO: remove words in remWords
     removes = list()
     for i, word in enumerate(remWords):
