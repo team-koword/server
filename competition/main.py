@@ -202,13 +202,17 @@ def check(Check: CheckBody) -> CheckBody:
 
     # get words in game table
     wordList = list(Room.wordMap.keys())
+
     # if the answer not in dictionary
-    if  Check.answer[0] not in FindDict\
+    if  Check.answer[0] not in FindDict \
+        or str(len(Check.answer)) not in FindDict[Check.answer[0]] \
         or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
         Check.remWords = []
+
     # if the answer in word table, remove only the word(includes duplicated)
     elif Check.answer in wordList:
         Check.remWords = [Check.answer]
+
     # get similar words in word table
     else:
         Check.remWords = getSimWords(simModel, wordList, Check.answer)
@@ -226,7 +230,8 @@ def check(Check: CheckBody) -> CheckBody:
     increase = len(Check.remWords)
     Room.users[Check.user] += increase
     Check.increase = increase
-    Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
+    if Check.remWords:
+        Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
 
     # reset table if words in table less than standard count
     MIN = 30
