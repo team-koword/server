@@ -142,12 +142,17 @@ def getGameData(CharDict: dict, WordDict: dict, FindDict: dict,
             words, word = list(), str()
             for length in range(dist):
                 word += gameTable[loc + length * dir][CHAR]
-                if not 1 < length < 5:
+                if not 0 < length < 5:
                     continue
                 if word[0] in FindDict and str(len(word)) in FindDict[word[0]] \
                     and word in FindDict[word[0]][str(len(word))]:
                     words.append(word)
-            return words[-1] if words else ""
+            # return longest word, not duplicated with words on table
+            while words:
+                word = words.pop()
+                if word not in wordMap:
+                    return word
+            return ""
 
         # find each single character if able to be a word
         for loc in range(SIZE):
