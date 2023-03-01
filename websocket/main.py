@@ -84,31 +84,27 @@ class Notifier:
     async def send_to_room(self, room_name, send_info):
         """같은 방에 있는 사람에게 뿌려주기"""
         try:
-            living_connections = []
-            while len(self.connections[room_name]) > 0:
-                websocket = self.connections[room_name].pop()
+            wesocket_list = get_websocket_lists_from_dict(room_name)
+            while len(wesocket_list) > 0:
+                websocket = wesocket_list.pop()
                 if websocket.client_state.name == "CONNECTED":
                     await websocket.send_text(send_info)
-                    living_connections.append(websocket)
                 else:
                     print(websocket)
-            self.connections[room_name] = living_connections
         except Exception as exception:
             print("예외는 ", exception)
 
     async def send_video_to_room(self, room_name, send_info):
         """같은 방에 있는 사람에게 비디오 보내기. 보낼 때 마다 조건을 체크해야 하니 일반 알림을 보내는 것과 분리함"""
         try:
-            living_connections = []
-            while len(self.connections[room_name]) > 0:
-                websocket = self.connections[room_name].pop()
+            wesocket_list = get_websocket_lists_from_dict(room_name)
+            while len(wesocket_list) > 0:
+                websocket = wesocket_list.pop()
                 if websocket.client_state.name == "CONNECTED":
                     if self.user_access_info[room_name][websocket]["video_status"] == True:
                         await websocket.send_text(send_info)
-                    living_connections.append(websocket)
                 else:
                     print(websocket)
-            self.connections[room_name] = living_connections
         except Exception as exception:
             print("예외는12 ", exception)
         
@@ -117,12 +113,12 @@ class Notifier:
         """웹소켓 연결 설정"""
 
         await websocket.accept()
-        if self.connections[room_name] == {} or len(self.connections[room_name]) == 0:
-            if self.room_info[room_name]["is_start"] != 1:
-                self.connections[room_name] = []
-        self.connections[room_name].append(websocket)
+        # if self.connections[room_name] == {} or len(self.connections[room_name]) == 0:
+        #     if self.room_info[room_name]["is_start"] != 1:
+        #         self.connections[room_name] = []
+        # self.connections[room_name].append(websocket)
 
-        print(f"CONNECTIONS : {self.connections[room_name]}")
+        # print(f"CONNECTIONS : {self.connections[room_name]}")
 
    
     def remove(self, websocket: WebSocket, room_name: str, limit_timer_task, turn_timer_task):
@@ -133,11 +129,12 @@ class Notifier:
             send_userid = self.user_access_info[room_name].pop(websocket, None)["userid"]
 
             # user가 나갔으면 해당 room에서 socket 지워주기
-            if websocket in self.connections[room_name]:
-                self.connections[room_name].remove(websocket)
+            wesocket_list = get_websocket_lists_from_dict(room_name)
+            if websocket in wesocket_list:
+                self.user_access_info[room_name].pop(websocket, None)
 
-            print("이건 뭐야 정말로 ", self.connections[room_name])
-            if len(self.connections[room_name]) == 0:
+            print("이건 뭐야 정말로 ", get_websocket_lists_from_dict(room_name))
+            if len(get_websocket_lists_from_dict(room_name)) == 0:
                 print("이 방은 지웁니다.", room_name)
                 del self.user_access_info[room_name]
                 del self.user_turn_count[room_name]
@@ -154,7 +151,7 @@ class Notifier:
             print(send_userid)
 
             print(
-                f"CONNECTION REMOVED\nREMAINING CONNECTIONS : {self.connections[room_name]}"
+                f"CONNECTION REMOVED\nREMAINING CONNECTIONS : {get_websocket_lists_from_dict(room_name)}"
             )
 
             return send_userid
@@ -199,10 +196,10 @@ class Notifier:
 
     def update_user_access_info(self, room_name):
         # 이번 턴 유저 아이디 설정
-        get_conn_list = self.get_members(room_name)
+        get_conn_list = get_websocket_lists_from_dict(room_name)
         for i in get_conn_list:
             if i.client_state.name != "CONNECTED":
-                self.connections[room_name].remove(i)
+                #self.connections[room_name].remove(i)
                 self.user_access_info[room_name].pop(i, None)
         print("업데이트 후 남아있는건", self.user_access_info[room_name])
 
@@ -236,9 +233,9 @@ class Notifier:
         return user_turn
     
     async def check_users(self, room_name):
-        for i in self.connections[room_name]:
+        for i in get_websocket_lists_from_dict(room_name):
             if i.client_state.name != "CONNECTED":
-                self.connections[room_name].remove(i)
+                #self.connections[room_name].remove(i)
                 send_userid = self.user_access_info[room_name].pop(i, None)
                 print("지워라", send_userid)
                 await notifier.delete_frame(room_name, send_userid)
@@ -422,6 +419,8 @@ class Notifier:
         if self.turn_timer_task[room_name] != {}:
             self.turn_timer_task[room_name].cancel()
         self.room_info[room_name] = {}
+        self.room_info[room_name]["is_start"] = 0
+        self.room_info[room_name]["game_mode"] = 0
         self.recent_turn_user[room_name] = {}
         self.turn_timer_task[room_name] = {}
         self.limit_timer_task[room_name] = {}
@@ -443,6 +442,13 @@ def get_userid_lists_from_dict(room_name):
         user_ids.append(info['userid'])
     return user_ids
 
+def get_websocket_lists_from_dict(room_name):
+    user_ids = []
+    inner_dict = notifier.user_access_info[room_name]
+    for ws, info in inner_dict.items():
+        user_ids.append(ws)
+    return user_ids
+
 
 notifier = Notifier()
 @app.websocket("/ws/{room_name}")
@@ -457,6 +463,7 @@ async def websocket_endpoint(
     print("in websocket")
     #print(websocket.client_state.name)
     await notifier.connect(websocket, room_name)
+    print("asdasd  ",notifier.room_info[room_name])
     if notifier.room_info[room_name]["is_start"] == 1:
         print("진행중인 방은 접근 불가. 방이름은 = ", room_name)
         go_back_data = {"type":"game_ing"} 
