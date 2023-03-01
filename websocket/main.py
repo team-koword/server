@@ -29,7 +29,7 @@ class Notifier:
         self.generator = self.get_notification_generator()
         self.user_access_info: dict = defaultdict(lambda: defaultdict(dict))     # 현재 접속중인 소켓 정보
         self.user_turn_count: dict = defaultdict(dict)                           # user_access_info의 인덱스: 순서대로 접근하기 위해 선언한 변수
-        self.room_game_start: dict = defaultdict(dict)                           # 현재 방이 게임 진행중인지 여부 - [0: 대기중, 1: 진행중]
+        self.room_info: dict = defaultdict(lambda: defaultdict(dict))            # 현재 방이 정보 ->게임 진행중인지 여부 - [0: 대기중, 1: 진행중], 게임모드  - ["", "WordCard", "CoOpGame"]
         self.recent_turn_user: dict = defaultdict(dict)                          # 현재 턴인 유저의 정보
         self.board_size = 11                                                     # game_board size
         self.turn_timer_task: dict = defaultdict(dict)                           # 비동기로 실행할 매 턴 타이머
@@ -141,7 +141,7 @@ class Notifier:
                 del self.user_access_info[room_name]
                 del self.user_turn_count[room_name]
                 del self.recent_turn_user[room_name]
-                del self.room_game_start[room_name]
+                del self.room_info[room_name]
                 if limit_timer_task != {}:
                     print("전체타이머 지운다~~~~~~")
                     limit_timer_task.cancel()
@@ -420,7 +420,7 @@ class Notifier:
             self.limit_timer_task[room_name].cancel()
         if self.turn_timer_task[room_name] != {}:
             self.turn_timer_task[room_name].cancel()
-        self.room_game_start[room_name] = 0
+        self.room_info[room_name] = {}
         self.recent_turn_user[room_name] = {}
         self.turn_timer_task[room_name] = {}
         self.limit_timer_task[room_name] = {}
@@ -456,7 +456,7 @@ async def websocket_endpoint(
     print("in websocket")
     #print(websocket.client_state.name)
     await notifier.connect(websocket, room_name)
-    if notifier.room_game_start[room_name] == 1:
+    if notifier.room_info[room_name]["is_start"] == 1:
         print("진행중인 방은 접근 불가. 방이름은 = ", room_name)
         go_back_data = {"type":"game_ing"} 
         go_back_data = json.dumps(go_back_data)
@@ -504,9 +504,12 @@ async def websocket_endpoint(
                 #     for ws, info in inner_dict.items():
                 #         user_ids.append(info['userid'])
 
-                rrr = get_userid_lists_from_dict(room_name)
-                print("!!!!!", rrr)
-                await notifier.insert_user_access_info(f"{data}", room_name, d["userid"], websocket)
+                if notifier.room_info[room_name]["game_mode"]:
+                    d["game_mode"] = notifier.room_info[room_name]["game_mode"]
+                else:
+                    d["game_mode"] = ""
+
+                await notifier.insert_user_access_info(json.dumps(d), room_name, d["userid"], websocket)
             elif d["type"] == 'send_user_turn':
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
@@ -527,7 +530,7 @@ async def websocket_endpoint(
             elif d["type"] == "game_start":
                 print("게임시작하니 버튼 지워주세요.")
                 notifier.user_turn_count[room_name] = 0
-                notifier.room_game_start[room_name] = 1
+                notifier.room_info[room_name]["is_start"] = 1
                 await notifier.send_to_room(room_name, f"{data}")
             elif d["type"] == "limit_time_start":
                 print("전체타이머")
@@ -564,6 +567,7 @@ async def websocket_endpoint(
                     if notifier.limit_timer_task[room_name] != {}:
                         notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, recent_turn_user, d["remove_count"]))
             elif d["type"] == "change_game":
+                notifier.room_info[room_name]["game_mode"] = d["game_mode"]
                 await notifier.send_to_room(room_name, f"{data}")
 
 
@@ -576,7 +580,7 @@ async def websocket_endpoint(
         # 게임이 진행중이고 내 턴이 진행중일 때 연결이 끊어졌다면 남은 사람들에게 턴을 넘겨야 한다.
         notifier.update_user_access_info(room_name)
         user_lists = get_userid_lists_from_dict(room_name)
-        if notifier.room_game_start[room_name] == 1 and get_user_id == notifier.recent_turn_user[room_name] :
+        if notifier.room_info[room_name]["is_start"] == 1 and get_user_id == notifier.recent_turn_user[room_name] :
             print("여기부터11111111")
             get_user_turn = notifier.get_user_turn(d, room_name)
             print("여기부터22222222")
