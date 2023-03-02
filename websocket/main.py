@@ -603,8 +603,9 @@ async def websocket_endpoint(
                 if notifier.turn_timer_task[room_name] != {}:
                     print("여기부터444444")
                     print(notifier.turn_timer_task[room_name])
-                    print("WebSocketDisconnect에서 notifier.turn_timer_task[room_name] 삭제")
-                    notifier.turn_timer_task[room_name].cancel()
+                    if notifier.room_info[room_name]["game_mode"] == "WordCard":
+                        print("WebSocketDisconnect에서 notifier.turn_timer_task[room_name] 삭제")
+                        notifier.turn_timer_task[room_name].cancel()
 
                 
                 notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))   
