@@ -7,6 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 import requests
 import asyncio
 import aiohttp
+import time
 
 
 app = FastAPI()
@@ -301,6 +302,7 @@ class Notifier:
         body["type"] = "next"
         send_data = self.set_game_server_send_data(game_mode, "next", body, room_name)
         status = "continue"
+        start_time = time.time()
 
         while status != "gameover":
             # http method에 따른 처리
@@ -321,7 +323,9 @@ class Notifier:
                 print(response)
         
         # 게임 끝났을 때 로직
-        params = { "type": "finish", }
+        end_time = time.time()
+        survival_time = int(end_time - start_time)
+        params = { "type": "finish", "times": survival_time}
         await self.game_server_request(room_name, "finish", "POST", params, game_mode)
         self.delete_resource(room_name)
 
