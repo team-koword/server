@@ -208,7 +208,7 @@ def next(Next: NextBody) -> NextBody:
         print(f"\n{C.red}GAMEOVER{C.End}\n")
 
     end = time.time()
-    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
+    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap else 0
 
     # print at terminal(for test)
     printWordTable(Room.gameTable, Room.height, Room.width)
@@ -251,7 +251,7 @@ def check(Check: CheckBody) -> CheckBody:
         Check.increment = 0
 
         end = time.time()
-        TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
+        TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap else 0
 
         print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
         print(f"try {C.Cyan}{Room.tries}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
@@ -293,7 +293,7 @@ def check(Check: CheckBody) -> CheckBody:
     Check.increment = increment
 
     end = time.time()
-    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
+    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap else 0
 
     # print at terminal(for test)
     printWordTable(Room.gameTable, Room.height, Room.width)
