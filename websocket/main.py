@@ -39,6 +39,9 @@ class Notifier:
         self.turn_time = 12                                                      # 유저 별 턴 시간(초)
         self.game_timer_stop: dict = defaultdict(dict)                           # 1이면 게임타이머 3초간 멈춤.
         self.new_game_tick = 0.5                                                 # new_game_time_tick
+        self.ready_time = 3                                                      # 게임 시작 시 대기 시간
+        self.ready_timer_task: dict = defaultdict(dict)                          # 시작 시 대기 시간 타이머
+        self.survival_timer_task: dict = defaultdict(dict)                       # 생존 시간 타이머
 
     async def get_notification_generator(self):
         while True:
@@ -144,10 +147,18 @@ class Notifier:
                 if limit_timer_task != {}:
                     print("전체타이머 지운다~~~~~~")
                     limit_timer_task.cancel()
+                    del self.limit_timer_task[room_name]
                 print("여기서는 뭐야대체", turn_timer_task)
                 if turn_timer_task != {}:
                     print("유저 턴 타이머 지운다~~~~~~")
                     turn_timer_task.cancel()
+                    del self.turn_timer_task[room_name]
+                if self.ready_timer_task[room_name] != {}:
+                    self.ready_timer_task[room_name].cancel()
+                    del self.ready_timer_task[room_name]
+                if self.survival_timer_task[room_name] != {}:
+                    self.survival_timer_task[room_name].cancel()
+                    del self.survival_timer_task[room_name]
 
             print(send_userid)
 
@@ -304,6 +315,10 @@ class Notifier:
         status = "continue"
         start_time = time.time()
 
+        tick_start = 1.7
+
+        self.survival_timer_task[room_name] = asyncio.create_task(self.survival_timer(room_name))
+
         while status != "gameover":
             # http method에 따른 처리
             try:
@@ -317,7 +332,9 @@ class Notifier:
                 print(response.text)
                 status = response.json()["status"]
 
-                await asyncio.sleep(self.new_game_tick)
+                await asyncio.sleep(tick_start)
+
+                tick_start = tick_start - 0.02 if tick_start > 0.5 else 0.5
 
             except Exception as exception:
                 print(response)
@@ -417,11 +434,56 @@ class Notifier:
             count -= 1
             await asyncio.sleep(1)
 
+    async def ready_timer(self, room_name, path, method, params, game_mode):
+        count = self.ready_time
+
+        while count >= 0:
+            json_object = {
+                "type": "ready_time",
+                "ready_time": count, 
+            }
+            json_object = json.dumps(json_object)
+
+            print(f"{room_name} -> Ready_timer count: {count}")
+
+            # 같은 방에 있는 사람에게 뿌려주기
+            await self.send_to_room(room_name, json_object)
+
+            count -= 1
+            await asyncio.sleep(1)
+
+        await self.game_server_request(room_name, path, method, params, game_mode)
+        self.ready_timer_task[room_name].cancel()
+
+    async def survival_timer(self, room_name):
+        count = 0
+
+        while self.room_info[room_name]["is_start"] == 1:
+            json_object = {
+                "type": "survival_time",
+                "survival_time": count, 
+            }
+            json_object = json.dumps(json_object)
+
+            print(f"{room_name} -> Survival_timer count: {count}")
+
+            # 같은 방에 있는 사람에게 뿌려주기
+            await self.send_to_room(room_name, json_object)
+
+            count += 1
+            await asyncio.sleep(1)
+
+        self.survival_timer_task[room_name].cancel()
+
     def delete_resource(self, room_name):
         if self.limit_timer_task[room_name] != {}:
             self.limit_timer_task[room_name].cancel()
         if self.turn_timer_task[room_name] != {}:
             self.turn_timer_task[room_name].cancel()
+        if self.ready_timer_task[room_name] != {}:
+            self.ready_timer_task[room_name].cancel()
+        if self.survival_timer_task[room_name] != {}:
+            self.survival_timer_task[room_name].cancel()
         self.room_info[room_name] = {}
         self.room_info[room_name]["is_start"] = 0
         self.room_info[room_name]["game_mode"] = 0
@@ -544,7 +606,10 @@ async def websocket_endpoint(
                         if d["game_mode"] == "WordCard":
                             print("game_server에서 notifier.turn_timer_task[room_name] 삭제")
                             notifier.turn_timer_task[room_name].cancel()
-                await notifier.game_server_request(room_name, path, method, params, game_mode)
+                if path == "init":
+                    notifier.ready_timer_task[room_name] = asyncio.create_task(notifier.ready_timer(room_name, path, method, params, game_mode))
+                else:
+                    await notifier.game_server_request(room_name, path, method, params, game_mode)
             elif d["type"] == "game_start":
                 print("게임시작하니 버튼 지워주세요.")
                 notifier.user_turn_count[room_name] = 0
