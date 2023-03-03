@@ -1,5 +1,4 @@
 # print colored in terminal
-# from .colored_terminal import C
 from colored_terminal import C
 
 
@@ -59,7 +58,6 @@ print(f"{C.Magenta}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
-# from .comp_mode_modeling import *
 from comp_mode_modeling import *
 
 
@@ -90,7 +88,6 @@ Rooms = defaultdict(RoomData)
 
 
 # game functions module
-# from .comp_mode_functions import *
 from comp_mode_functions import *
 
 
@@ -141,7 +138,7 @@ def init(Init: InitBody) -> InitBody:
     start = time.time()
 
     # get room data and initialize
-    global Rooms, CharDict, WordDict, FindDict
+    global Rooms, CharDict, WordDict
     # initialize room data
     Rooms[Init.roomId].__init__()
     Room = Rooms[Init.roomId]
@@ -159,8 +156,7 @@ def init(Init: InitBody) -> InitBody:
     # get game data
     Init.moves = list()
     adds = list()
-    getGameData(CharDict, WordDict, FindDict, 
-                Room.gameTable, Room.wordMap, adds, 
+    getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
                 Room.height, Room.width)
     Init.table = Room.gameTable
     Init.moves.append(adds)
@@ -202,17 +198,14 @@ def check(Check: CheckBody) -> CheckBody:
 
     # get words in game table
     wordList = list(Room.wordMap.keys())
-
     # if the answer not in dictionary
     if  Check.answer[0] not in FindDict \
         or str(len(Check.answer)) not in FindDict[Check.answer[0]] \
         or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
         Check.remWords = []
-
     # if the answer in word table, remove only the word(includes duplicated)
     elif Check.answer in wordList:
         Check.remWords = [Check.answer]
-
     # get similar words in word table
     else:
         Check.remWords = getSimWords(simModel, wordList, Check.answer)
@@ -222,7 +215,7 @@ def check(Check: CheckBody) -> CheckBody:
 
     # update room data
     Check.moves = list()
-    updateGameData(CharDict, WordDict, FindDict, Room.gameTable, Room.wordMap, 
+    updateGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, 
                    Check.remWords, Check.moves, Room.height, Room.width)
     print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
 
@@ -230,11 +223,10 @@ def check(Check: CheckBody) -> CheckBody:
     increase = len(Check.remWords)
     Room.users[Check.user] += increase
     Check.increase = increase
-    if Check.remWords:
-        Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
+    Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
 
     # reset table if words in table less than standard count
-    MIN = 30
+    MIN = 35
     if len(list(Room.wordMap.keys())) < MIN:
         # set move information for all cells -> empty
         SIZE = Room.height * Room.width
@@ -246,8 +238,7 @@ def check(Check: CheckBody) -> CheckBody:
         Room.wordMap = defaultdict(list)
         adds = list()
         # get game data again
-        getGameData(CharDict, WordDict, FindDict, 
-                    Room.gameTable, Room.wordMap, adds, 
+        getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
                     Room.height, Room.width)
         Check.moves.append(adds)
         print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
@@ -301,6 +292,7 @@ def finish(Finish: FinishBody) -> FinishBody:
     scores = sorted([[user, score] for user, score \
         in Room.users.items()], key=lambda x: -x[1])
     # put rank at first
+    TOTAL = sum(score[1] for score in scores)
     Finish.scores = [[rank, user, score] for rank, (user, score) \
         in enumerate(scores, start=1)]
 
@@ -310,7 +302,7 @@ def finish(Finish: FinishBody) -> FinishBody:
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
     print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.turns}{C.End} turns")
-    print(f"total {C.Cyan}{sum(score[2] for score in Finish.scores)}{C.End} words removes")
+    print(f"total {C.Cyan}{sum(TOTAL)}{C.End} words removes")
     for rank, user, score in Finish.scores:
         print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
     print(f"{C.Magenta}GAME FINISHED{C.End}\n\n")
