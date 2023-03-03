@@ -319,7 +319,7 @@ class Notifier:
 
         self.survival_timer_task[room_name] = asyncio.create_task(self.survival_timer(room_name))
 
-        while status != "gameover" and self.room_info[room_name]["is_start"] = 1:
+        while status != "gameover" and self.room_info[room_name]["is_start"] == 1:
             # http method에 따른 처리
             try:
                 if method == 'GET':
