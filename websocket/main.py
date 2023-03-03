@@ -484,7 +484,7 @@ class Notifier:
             self.ready_timer_task[room_name].cancel()
         if self.survival_timer_task[room_name] != {}:
             self.survival_timer_task[room_name].cancel()
-        self.room_info[room_name] = {}
+        #self.room_info[room_name] = {}
         self.room_info[room_name]["is_start"] = 0
         #self.room_info[room_name]["game_mode"] = 0
         self.recent_turn_user[room_name] = {}
