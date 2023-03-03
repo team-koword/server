@@ -1,5 +1,4 @@
 # print colored in terminal
-# from .colored_terminal import C
 from colored_terminal import C
 
 
@@ -51,7 +50,6 @@ print(f"{C.Blue}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
-# from .coop_mode_modeling import *
 from coop_mode_modeling import *
 
 
@@ -69,7 +67,7 @@ class RoomData:
         self.rowMap: dict[int, list] = defaultdict(list)    # {row: [words], ...}
         self.height: int = 0
         self.width: int = 0
-        self.tick: float = 0 # next word per tick seconds
+        self.times: float = 0
         self.users: dict[str, int] = defaultdict(int)       # {user: score, ...}
         self.tries: int = -1                                # will be 0 when game initialized
         self.answerLog: list = list()                       # [[answer, [removed words]], ...]
@@ -80,7 +78,6 @@ Rooms = defaultdict(RoomData)
 
 
 # game functions module
-# from .coop_mode_functions import *
 from coop_mode_functions import *
 
 
@@ -120,7 +117,6 @@ class InitBody(BaseModel):
     type: str
     roomId: str
     size: int
-    tick: float
     users: list
 # initialize new game in size(height * width)
 @app.post("/init")
@@ -137,10 +133,8 @@ def init(Init: InitBody) -> InitBody:
     Room.roomId = Init.roomId
     Room.tries = 0
     Room.height, Room.width = Init.size, Init.size
-    Room.tick = Init.tick
-    START = 0
     for user in Init.users:
-        Room.users[user] = START
+        Room.users[user] = 0
 
     # initialize word table
     initWordTable(Room.gameTable, Room.height, Room.width)
@@ -150,7 +144,6 @@ def init(Init: InitBody) -> InitBody:
 
     end = time.time()
     print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
-    print(f"a word falls every {C.Cyan}{Room.tick}{C.End} secs")
     print(f"{C.Blue}GAME START{C.End}\n\n")
     
     return Init
@@ -181,8 +174,7 @@ def next(Next: NextBody) -> NextBody:
     # get random word with random length, which falls at random column
     from random import choice, randint
     # Next.length = randint(2, 5)
-    CNT2, CNT3, CNT4, CNT5 = 3, 3, 2, 1
-    Next.length = choice([2] * CNT2 + [3] * CNT3 + [4] * CNT4 + [5] * CNT5)
+    Next.length = choice([2, 2, 2, 3, 3, 3, 4, 4, 5])
     while True:
         Next.word = choice(WordDict[str(Next.length)])
         if Next.word not in Room.wordMap:
@@ -297,7 +289,8 @@ def check(Check: CheckBody) -> CheckBody:
 class FinishBody(BaseModel):
     type: str
     roomId: str
-    scores: Optional[list] = None       # [[rank, user, score], ...]
+    times: float
+    scores: Optional[list] = None       # [[rank, user, score, contr], ...]
     answerLog: Optional[list] = None    # [[try, answer, [removedWord, ...]], ...]
 # show each user's score from first to last
 # and what words removed with each answer
@@ -310,23 +303,26 @@ def finish(Finish: FinishBody) -> FinishBody:
     # get room data and dictionary
     global Rooms
     Room = Rooms[Finish.roomId]
+    Room.times = Finish.times
 
     # user's score in score descending order
     scores = sorted([[user, score] for user, score \
         in Room.users.items()], key=lambda x: -x[1])
     # put rank at first
-    Finish.scores = [[rank, user, score] for rank, (user, score) \
-        in enumerate(scores, start=1)]
+    TOTAL = sum(score[1] for score in scores)
+    Finish.scores = [[rank, user, score, int(score / TOTAL * 100)] \
+        for rank, (user, score) in enumerate(scores, start=1)]
 
-    # answer log
+    # answer log and game time
     Finish.answerLog = Room.answerLog
+    Finish.times = Room.times
 
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
-    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.tries}{C.End} tries")
-    print(f"total {C.Cyan}{sum(score[2] for score in Finish.scores)}{C.End} words removed")
-    for rank, user, score in Finish.scores:
-        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
+    print(f"played {C.Cyan}{Room.times}{C.End} secs, {C.Cyan}{Room.tries}{C.End} tries")
+    print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
+    for rank, user, score, contr in Finish.scores:
+        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, contributed: {C.Cyan}{score}({contr}%){C.End}")
     print(f"{C.Blue}GAME FINISHED{C.End}\n\n")
     
     # delete room data
