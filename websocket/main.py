@@ -256,9 +256,9 @@ class Notifier:
 
         # game_mode에 따른 url 설정
         if game_mode == "WordCard":
-            api_host = "http://localhost:7777/"
+            api_host = "http://gameserver:7777/"
         else:
-            api_host = "http://localhost:7778/"
+            api_host = "http://new_game:7778/"
 
         url = api_host + path
 
