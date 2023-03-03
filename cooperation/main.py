@@ -310,8 +310,9 @@ def finish(Finish: FinishBody) -> FinishBody:
         in Room.users.items()], key=lambda x: -x[1])
     # put rank at first
     TOTAL = sum(score[1] for score in scores)
-    Finish.scores = [[rank, user, score, int(score / TOTAL * 100)] \
-        for rank, (user, score) in enumerate(scores, start=1)]
+    Finish.scores = [[rank, user, score,
+                      int(score / TOTAL * 100) if TOTAL != 0 else 0] \
+                          for rank, (user, score) in enumerate(scores, start=1)]
 
     # answer log and game time
     Finish.answerLog = Room.answerLog
