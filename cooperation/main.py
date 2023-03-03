@@ -208,13 +208,14 @@ def next(Next: NextBody) -> NextBody:
         print(f"\n{C.red}GAMEOVER{C.End}\n")
 
     end = time.time()
+    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
 
     # print at terminal(for test)
     printWordTable(Room.gameTable, Room.height, Room.width)
 
     print(f"next word fell in {C.Cyan}{end - start}{C.End} secs")
     print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
-    print(f"top word in {C.Cyan}{Room.height - getRow(min(Room.wordMap.values()), Room.width)}{C.End} th rows")
+    print(f"top word in {C.Cyan}{TOP}{C.End} th rows")
     print(f"{C.Blue}NEXT WORD FELL{C.End}\n\n")
 
     return Next
@@ -248,6 +249,16 @@ def check(Check: CheckBody) -> CheckBody:
         Check.remWords = []
         Check.moveInfo = []
         Check.increment = 0
+
+        end = time.time()
+        TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
+
+        print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
+        print(f"try {C.Cyan}{Room.tries}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
+        print(f"{C.Cyan}{len(Check.remWords)}{C.End} words removed: {C.Cyan}{Check.remWords}{C.End}")
+        print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
+        print(f"top word in {C.Cyan}{TOP}{C.End} th rows\n\n")
+        print(f"{C.Blue}ANSWER NOT IN DICTIONARY{C.End}\n\n")
         return Check
 
     # get words to remove similar with the answer
@@ -282,6 +293,7 @@ def check(Check: CheckBody) -> CheckBody:
     Check.increment = increment
 
     end = time.time()
+    TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap.values else 0
 
     # print at terminal(for test)
     printWordTable(Room.gameTable, Room.height, Room.width)
@@ -290,7 +302,7 @@ def check(Check: CheckBody) -> CheckBody:
     print(f"try {C.Cyan}{Room.tries}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
     print(f"{C.Cyan}{len(Check.remWords)}{C.End} words removed: {C.Cyan}{Check.remWords}{C.End}")
     print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
-    print(f"top word in {C.Cyan}{Room.height - getRow(min(Room.wordMap.values()), Room.width)}{C.End} th rows\n\n")
+    print(f"top word in {C.Cyan}{TOP}{C.End} th rows\n\n")
     print(f"{C.Blue}ANSWER CHECKED{C.End}\n\n")
 
     return Check
