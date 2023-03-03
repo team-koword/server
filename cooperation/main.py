@@ -2,12 +2,12 @@
 from colored_terminal import C
 
 
-##### COMPETETION MODE SERVER #####
-print(f"\n\n{C.white}{C.B_magenta}COMPETETION MODE{C.End}")
+##### COOPERATION MODE SERVER #####
+print(f"\n\n{C.white}{C.B_blue}COOPERATION MODE{C.End}")
 
 
 # start server
-print(f"\n\n{C.Magenta}GAME SERVER STARTED{C.End}")
+print(f"\n\n{C.Blue}GAME SERVER STARTED{C.End}")
 
 # test run-time
 import time
@@ -21,22 +21,14 @@ START = time.time()
 import os
 dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-# get json file function
-def get_json(fileName: str) -> dict:
-    import json
-    with open(dirPath + fileName, "r", encoding="utf8") as file:
-        json_file = json.load(file)
-    return json_file
-
-
 # get json data
 print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
 start = time.time()
 
+import json
 try:
-    CharDict = get_json("chars.json")
-    WordDict = get_json("words.json")
-    FindDict = get_json("finds.json")
+    with open(dirPath + "./words.json", "r", encoding="utf8") as file:
+        WordDict = json.load(file)
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -54,11 +46,11 @@ try:
 except Exception as err:
     print(f"{C.red}FAIL{C.End} to load fast-text model: {err}")
 
-print(f"{C.Magenta}GAME SERVER IS READY{C.End}\n\n")
+print(f"{C.Blue}GAME SERVER IS READY{C.End}\n\n")
 
 
 # modeling functions module
-from comp_mode_modeling import *
+from coop_mode_modeling import *
 
 
 
@@ -66,20 +58,18 @@ from comp_mode_modeling import *
 ## game data
 from typing import Optional
 from collections import defaultdict
-EMPTY, DISCNT = "  ", "X"
-CHAR, CONN = 0, 1
-
-
 # each room data
 class RoomData:
     def __init__(self) -> None:
         self.roomId: str = ""
-        self.gameTable: dict[int, list] = defaultdict(list) # {loc: [char, connections], ...}
-        self.wordMap: dict[str, list] = defaultdict(list)   # {word: [loc, ...], ...}
+        self.gameTable: dict[int, str] = defaultdict(str)   # {loc: char, ...}
+        self.wordMap: dict[str, int] = defaultdict(int)     # {word: loc, ...}
+        self.rowMap: dict[int, list] = defaultdict(list)    # {row: [words], ...}
         self.height: int = 0
         self.width: int = 0
+        self.times: float = 0
         self.users: dict[str, int] = defaultdict(int)       # {user: score, ...}
-        self.turns: int = -1                                # will be 0 when game initialized
+        self.tries: int = -1                                # will be 0 when game initialized
         self.answerLog: list = list()                       # [[answer, [removed words]], ...]
 
 
@@ -88,7 +78,7 @@ Rooms = defaultdict(RoomData)
 
 
 # game functions module
-from comp_mode_functions import *
+from coop_mode_functions import *
 
 
 
@@ -128,49 +118,106 @@ class InitBody(BaseModel):
     roomId: str
     size: int
     users: list
-    table: Optional[dict] = None    # {loc: [char, conn], ...}
-    moves: Optional[list] = None    # [[adds]], adds = [[dep, arr, char], ...]
-# initialize game with new table in size(height * width)
+# initialize new game in size(height * width)
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
-    print(f"\n\n{C.Magenta}NEW GAME STARTED{C.End}")
+    print(f"\n\n{C.Blue}NEW GAME STARTED{C.End}")
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
     # get room data and initialize
-    global Rooms, CharDict, WordDict
+    global Rooms
     # initialize room data
     Rooms[Init.roomId].__init__()
     Room = Rooms[Init.roomId]
     Room.roomId = Init.roomId
-    Room.turns = 0
+    Room.tries = 0
     Room.height, Room.width = Init.size, Init.size
-    Room.gameTable = defaultdict(list)
-    INIT = 0
     for user in Init.users:
-        Room.users[user] = INIT
+        Room.users[user] = 0
 
-    # initialize table
-    initGameTable(Room.gameTable, Room.height, Room.width)
-
-    # get game data
-    Init.moves = list()
-    adds = list()
-    getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
-                Room.height, Room.width)
-    Init.table = Room.gameTable
-    Init.moves.append(adds)
+    # initialize word table
+    initWordTable(Room.gameTable, Room.height, Room.width)
 
     # print at terminal(for test)
-    printGameTable(Room.gameTable, Room.height, Room.width)
+    printWordTable(Room.gameTable, Room.height, Room.width)
 
     end = time.time()
     print(f"game initialized in {C.Cyan}{end - start}{C.End} secs")
-    wordList = list(Room.wordMap.keys())
-    print(f"{C.Cyan}{len(wordList)}{C.End} words in table: {C.Cyan}{wordList}{C.End}")
-    print(f"{C.Magenta}GAME START{C.End}\n\n")
-
+    print(f"{C.Blue}GAME START{C.End}\n\n")
+    
     return Init
+
+
+# request and response body
+class NextBody(BaseModel):
+    type: str
+    roomId: str
+    status: Optional[str] = None	# "continue" | "gameover"
+    word: Optional[str] = None
+    left: Optional[int] = None
+    length: Optional[int] = None
+    fall: Optional[int] = None
+# put next new word
+# if the new word reach to top, game over
+@app.post("/next")
+def next(Next: NextBody) -> NextBody:
+    print(f"\n\n{C.Blue}NEW WORD FALLING{C.End}")
+    print(f"room {C.Cyan}{Next.roomId}{C.End}")
+    start = time.time()
+
+    # get room data and dictionary
+    global Rooms, WordDict
+    Room = Rooms[Next.roomId]
+    NEW, OVER = -1, 0
+
+    # get random word with random length, which falls at random column
+    from random import choice, randint
+
+    rand = choice(range(100))
+    if rand < 50:
+        length = 2
+    elif 50 <= rand < 74:
+        length = 3
+    elif 74 <= rand < 98:
+        length = 4
+    else:
+        length = 5
+    Next.length = length
+
+    while True:
+        Next.word = choice(WordDict[str(Next.length)])
+        if Next.word not in Room.wordMap:
+            break
+
+    Next.left = randint(0, Room.width - Next.length)
+    
+    # set game information with dummy value for fallWord function
+    for i in range(len(Next.word)):
+        Room.gameTable[Next.left - Room.width + i] = Next.word[i]
+    Room.wordMap[Next.word] = Next.left - Room.width
+    Room.rowMap[NEW].append(Next.word)
+    
+    # word falls down
+    Next.fall = fallWord(Room.gameTable, Room.wordMap, Room.rowMap, 
+                         Room.height, Room.width, Next.word, Next.left)
+    
+    # game over if next word reached to top
+    Next.status = "gameover" if Next.fall == OVER else "continue"
+    if Next.status == "gameover":
+        print(f"\n{C.red}GAMEOVER{C.End}\n")
+
+    end = time.time()
+
+    # print at terminal(for test)
+    printWordTable(Room.gameTable, Room.height, Room.width)
+
+    print(f"next word fell in {C.Cyan}{end - start}{C.End} secs")
+    print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
+    print(f"top word in {C.Cyan}{Room.height - getRow(min(Room.wordMap.values()), Room.width)}{C.End} th rows")
+    print(f"{C.Blue}NEXT WORD FELL{C.End}\n\n")
+
+    return Next
 
 
 # request and response body
@@ -179,93 +226,72 @@ class CheckBody(BaseModel):
     roomId: str
     user: str
     answer: str
-    table: Optional[dict] = None        # {loc: [char, conn], ...}
-    moves: Optional[list] = None        # [[removes], [falls], [adds]]
     remWords: Optional[list] = None     # [word, ...]
-    increase: Optional[int] = None
-# check if answer word or similar words in table
-# if the answer in table, remove only the answer(includes duplicated)
+    moveInfo: Optional[list] = None     # [[word: str, fall: int], ...]
+    increment: Optional[int] = None
+# check and remove words similar with the answer
+# if the answer in word table, lock it
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
-    print(f"\n\n{C.Magenta}CHECKING ANSWER{C.End}")
+    print(f"\n\n{C.Blue}CHECKING ANSWER{C.End}")
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
     # get room data and dictionary
-    global Rooms, CharDict, FindDict
+    global Rooms, WordDict
     Room = Rooms[Check.roomId]
-    Room.turns += 1
+    Room.tries += 1
 
-    # get words in game table
-    wordList = list(Room.wordMap.keys())
     # if the answer not in dictionary
-    if  Check.answer[0] not in FindDict \
-        or str(len(Check.answer)) not in FindDict[Check.answer[0]] \
-        or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
+    if str(len(Check.answer)) not in WordDict \
+        or Check.answer not in WordDict[str(len(Check.answer))]:
         Check.remWords = []
-    # if the answer in word table, remove only the word(includes duplicated)
-    elif Check.answer in wordList:
-        Check.remWords = [Check.answer]
-    # get similar words in word table
-    else:
-        Check.remWords = getSimWords(simModel, wordList, Check.answer)
-        for word in Check.remWords:
-            if word not in wordList:
-                Check.remWords.remove(word)
+        Check.moveInfo = []
+        Check.increment = 0
+        return Check
 
-    # update room data
-    Check.moves = list()
-    updateGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, 
-                   Check.remWords, Check.moves, Room.height, Room.width)
-    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
+    # get words to remove similar with the answer
+    Check.remWords = getSimWords(simModel, list(Room.wordMap.keys()), Check.answer)
 
-    # update user score and answer log
-    increase = len(Check.remWords)
-    Room.users[Check.user] += increase
-    Check.increase = increase
-    Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
+    # lock the answer if exists in word table
+    if Check.answer in Check.remWords:
+        Check.remWords.remove(Check.answer)
 
-    # reset table if words in table less than standard count
-    MIN = 35
-    if len(list(Room.wordMap.keys())) < MIN:
-        # set move information for all cells -> empty
-        SIZE = Room.height * Room.width
-        removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
-        Check.moves.append(removes)
-        # initialize gameTable and wordMap
-        Room.gameTable = defaultdict(list)
-        initGameTable(Room.gameTable, Room.height, Room.width)
-        Room.wordMap = defaultdict(list)
-        adds = list()
-        # get game data again
-        getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
-                    Room.height, Room.width)
-        Check.moves.append(adds)
-        print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
+    # remove similar words
+    Check.moveInfo = list()
+    if removeWords:
+        removeWords(Room.gameTable, Room.wordMap, Room.rowMap, 
+                    Room.height, Room.width, Check.remWords)
 
-    Check.table = Room.gameTable
+        # words above removed words fall down
+        for row in range(Room.height - 2, -1, -1):
+            words = Room.rowMap[row][:]
+            for word in words:
+                fall = fallWord(Room.gameTable, Room.wordMap, Room.rowMap, 
+                                Room.height, Room.width, word)
+                if fall:
+                    Check.moveInfo.append([word, fall])
 
-    # print at terminal(for test)
-    for i, move in enumerate(Check.moves):
-        if i == 0:
-            print(f"removes: {move}")
-        elif i == 1:
-            print(f"falls: {move}")
-        elif i == 2:
-            print(f"adds: {move}")
-        elif i == 3:
-            print(f"(reset)removes: {move}")
-        elif i == 4:
-            print(f"(reset)adds: {move}")
-    printGameTable(Room.gameTable, Room.height, Room.width)
+    # update answer log
+    if Check.remWords:
+        Room.answerLog.append([Room.tries, Check.answer, Check.remWords])
+    
+    # update score
+    increment = len(Check.remWords)
+    Room.users[Check.user] += increment
+    Check.increment = increment
 
     end = time.time()
+
+    # print at terminal(for test)
+    printWordTable(Room.gameTable, Room.height, Room.width)
+
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
-    print(f"turn {C.Cyan}{Room.turns}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
+    print(f"try {C.Cyan}{Room.tries}{C.End}, user: {C.Cyan}{Check.user}{C.End}, answer: {C.Cyan}{Check.answer}{C.End}")
     print(f"{C.Cyan}{len(Check.remWords)}{C.End} words removed: {C.Cyan}{Check.remWords}{C.End}")
-    wordList = list(Room.wordMap.keys())
-    print(f"{C.Cyan}{len(wordList)}{C.End} words in table: {C.Cyan}{wordList}{C.End}")
-    print(f"{C.Magenta}ANSWER CHECKED{C.End}\n\n")
+    print(f"{C.Cyan}{sum(len(Room.rowMap[row]) for row in range(Room.height))}{C.End} words in table")
+    print(f"top word in {C.Cyan}{Room.height - getRow(min(Room.wordMap.values()), Room.width)}{C.End} th rows\n\n")
+    print(f"{C.Blue}ANSWER CHECKED{C.End}\n\n")
 
     return Check
 
@@ -274,38 +300,42 @@ def check(Check: CheckBody) -> CheckBody:
 class FinishBody(BaseModel):
     type: str
     roomId: str
-    scores: Optional[list] = None       # [[rank, user, score], ...]
-    answerLog: Optional[list] = None    # [[turn, answer, [removesWord, ...]], ...]
+    times: float
+    scores: Optional[list] = None       # [[rank, user, score, contr], ...]
+    answerLog: Optional[list] = None    # [[try, answer, [removedWord, ...]], ...]
 # show each user's score from first to last
-# and what words removes with each answer
+# and what words removed with each answer
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
-    print(f"\n\n{C.Magenta}FINISHING GAME{C.End}")
+    print(f"\n\n{C.Blue}FINISHING GAME{C.End}")
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 
     # get room data and dictionary
     global Rooms
     Room = Rooms[Finish.roomId]
+    Room.times = Finish.times
 
     # user's score in score descending order
     scores = sorted([[user, score] for user, score \
         in Room.users.items()], key=lambda x: -x[1])
     # put rank at first
     TOTAL = sum(score[1] for score in scores)
-    Finish.scores = [[rank, user, score] for rank, (user, score) \
-        in enumerate(scores, start=1)]
+    Finish.scores = [[rank, user, score,
+                      int(score / TOTAL * 100) if TOTAL != 0 else 0] \
+                          for rank, (user, score) in enumerate(scores, start=1)]
 
-    # answer log
+    # answer log and game time
     Finish.answerLog = Room.answerLog
-    
+    Finish.times = Room.times
+
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
-    print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.turns}{C.End} turns")
-    print(f"total {C.Cyan}{sum(TOTAL)}{C.End} words removes")
-    for rank, user, score in Finish.scores:
-        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
-    print(f"{C.Magenta}GAME FINISHED{C.End}\n\n")
+    print(f"played {C.Cyan}{Room.times}{C.End} secs, {C.Cyan}{Room.tries}{C.End} tries")
+    print(f"total {C.Cyan}{TOTAL}{C.End} words removed")
+    for rank, user, score, contr in Finish.scores:
+        print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, contributed: {C.Cyan}{score}({contr}%){C.End}")
+    print(f"{C.Blue}GAME FINISHED{C.End}\n\n")
     
     # delete room data
     del(Rooms[Finish.roomId])
