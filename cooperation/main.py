@@ -89,6 +89,19 @@ from fastapi import FastAPI
 app = FastAPI()
 
 
+# sentry
+import sentry_sdk
+sentry_sdk.init(
+    dsn="https://1ae39f0f338248a8abbe893a34f8ee13@o4504772214325248.ingest.sentry.io/4504779026137088",
+    environment="production",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
+
+
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
@@ -229,7 +242,7 @@ class CheckBody(BaseModel):
     answer: str
     remWords: Optional[list] = None     # [word, ...]
     moveInfo: Optional[list] = None     # [[word: str, fall: int], ...]
-    increment: Optional[int] = None
+    increase: Optional[int] = None
 # check and remove words similar with the answer
 # if the answer in word table, lock it
 @app.post("/check")
@@ -248,7 +261,7 @@ def check(Check: CheckBody) -> CheckBody:
         or Check.answer not in WordDict[str(len(Check.answer))]:
         Check.remWords = []
         Check.moveInfo = []
-        Check.increment = 0
+        Check.increase = 0
 
         end = time.time()
         TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap else 0
@@ -288,9 +301,9 @@ def check(Check: CheckBody) -> CheckBody:
         Room.answerLog.append([Room.tries, Check.answer, Check.remWords])
     
     # update score
-    increment = len(Check.remWords)
-    Room.users[Check.user] += increment
-    Check.increment = increment
+    increase = len(Check.remWords)
+    Room.users[Check.user] += increase
+    Check.increase = increase
 
     end = time.time()
     TOP = Room.height - getRow(min(Room.wordMap.values()), Room.width) if Room.wordMap else 0
