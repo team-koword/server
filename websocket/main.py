@@ -9,6 +9,9 @@ import asyncio
 import aiohttp
 import time
 import sentry_sdk
+import uvloop
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 sentry_sdk.init(
