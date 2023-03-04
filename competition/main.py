@@ -99,6 +99,20 @@ from fastapi import FastAPI
 app = FastAPI()
 
 
+# sentry
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://0b799141cf7c40b18cce3f9d165da751@o4504772214325248.ingest.sentry.io/4504778998218752",
+    environment="production",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
+
+
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
@@ -302,7 +316,7 @@ def finish(Finish: FinishBody) -> FinishBody:
     end = time.time()
     print(f"game data analyzed in {C.Cyan}{end - start}{C.End} secs")
     print(f"played {C.Cyan}{start - START}{C.End} secs, {C.Cyan}{Room.turns}{C.End} turns")
-    print(f"total {C.Cyan}{sum(TOTAL)}{C.End} words removes")
+    print(f"total {C.Cyan}{TOTAL}{C.End} words removes")
     for rank, user, score in Finish.scores:
         print(f"rank {C.Cyan}{rank}{C.End}: {C.Cyan}{user}{C.End}, score: {C.Cyan}{score}{C.End}")
     print(f"{C.Magenta}GAME FINISHED{C.End}\n\n")
@@ -311,3 +325,9 @@ def finish(Finish: FinishBody) -> FinishBody:
     del(Rooms[Finish.roomId])
     
     return Finish
+
+
+# sentry
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
