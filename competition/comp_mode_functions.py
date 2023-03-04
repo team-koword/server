@@ -33,7 +33,7 @@ def getRightDist(gameTable: dict, loc: int, flag: int,
             dist += 1
         else:
             break
-    return dist
+    return dist - 1
 
 
 # get downwards distance exclude itself
@@ -47,7 +47,7 @@ def getDownDist(gameTable: dict, loc: int, flag: int,
             dist += 1
         else:
             break
-    return dist
+    return dist - 1
 
 
 # get a random character
