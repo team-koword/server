@@ -28,7 +28,7 @@ def getRightDist(gameTable: dict, loc: int, flag: int,
                  height: int, width: int) -> int:
     FLAG = [EMPTY, DISCNT]
     dist = 1
-    while getCol(loc, width) + dist < width:
+    while getCol(loc, width) + dist < width - 1:
         if gameTable[loc + dist][flag] == FLAG[flag]:
             dist += 1
         else:
@@ -42,7 +42,7 @@ def getDownDist(gameTable: dict, loc: int, flag: int,
                 height: int, width: int) -> int:
     FLAG = [EMPTY, DISCNT]
     dist = 1
-    while getRow(loc, width) + dist < height:
+    while getRow(loc, width) + dist < height - 1:
         if gameTable[loc + dist * width][flag] == FLAG[flag]:
             dist += 1
         else:
@@ -216,6 +216,7 @@ def getGameData(CharDict: dict, WordDict: dict,
         word = _word(CharDict, WordDict, dir, dist)
 
         # put each character and connection of the word
+        print(f"loc: {loc}, dir: {dir}, dist: {dist}, word: {word}")
         _put(gameTable, wordMap, loc, word, dir)
 
         # update moves
