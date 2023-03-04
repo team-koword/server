@@ -33,7 +33,7 @@ def getRightDist(gameTable: dict, loc: int, flag: int,
             dist += 1
         else:
             break
-    return dist
+    return dist - 1
 
 
 # get downwards distance exclude itself
@@ -47,7 +47,7 @@ def getDownDist(gameTable: dict, loc: int, flag: int,
             dist += 1
         else:
             break
-    return dist
+    return dist - 1
 
 
 # get a random character
@@ -216,6 +216,7 @@ def getGameData(CharDict: dict, WordDict: dict,
         word = _word(CharDict, WordDict, dir, dist)
 
         # put each character and connection of the word
+        print(f"loc: {loc}, dir: {dir}, dist: {dist}, word: {word}")
         _put(gameTable, wordMap, loc, word, dir)
 
         # update moves
