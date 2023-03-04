@@ -96,6 +96,17 @@ from comp_mode_functions import *
 ## response and request
 # FastAPI
 from fastapi import FastAPI
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://0b799141cf7c40b18cce3f9d165da751@o4504772214325248.ingest.sentry.io/4504778998218752",
+    environment="production",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
 app = FastAPI()
 
 
@@ -311,3 +322,7 @@ def finish(Finish: FinishBody) -> FinishBody:
     del(Rooms[Finish.roomId])
     
     return Finish
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0

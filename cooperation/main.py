@@ -86,6 +86,18 @@ from coop_mode_functions import *
 ## response and request
 # FastAPI
 from fastapi import FastAPI
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://1ae39f0f338248a8abbe893a34f8ee13@o4504772214325248.ingest.sentry.io/4504779026137088",
+    environment="production",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
+
 app = FastAPI()
 
 
