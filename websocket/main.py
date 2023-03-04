@@ -13,6 +13,7 @@ import sentry_sdk
 
 sentry_sdk.init(
     dsn="https://421b5d7b3f4a4bb8a64c60cbb9de622d@o4504772214325248.ingest.sentry.io/4504774549241856",
+    environment="production",
 
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
