@@ -8,6 +8,19 @@ import requests
 import asyncio
 import aiohttp
 import time
+import sentry_sdk
+
+
+sentry_sdk.init(
+    dsn="https://421b5d7b3f4a4bb8a64c60cbb9de622d@o4504772214325248.ingest.sentry.io/4504774549241856",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
+
+
 
 
 app = FastAPI()
@@ -684,3 +697,7 @@ async def websocket_endpoint(
         # 연결이 끊어졌으니 내 비디오를 지우라고 전송
         await notifier.delete_frame(room_name, get_user_id)
         #await websocket.close()
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
