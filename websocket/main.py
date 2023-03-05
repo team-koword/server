@@ -107,6 +107,8 @@ class Notifier:
         try:
             # 기존 딕셔너리에서 user_name 가져오고 해당 키 삭제. 이후 클라이언트로 user_name 전달
             # 이것은 턴을 위한 유저 정보
+            logging.info(self.user_access_info[room_name])
+
             send_userid = self.user_access_info[room_name].pop(websocket, None)["userid"]
 
             # user가 나갔으면 해당 room에서 socket 지워주기
