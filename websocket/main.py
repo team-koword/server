@@ -490,20 +490,20 @@ class Notifier:
         except Exception as exception:
             logging.exception(exception)
 
-    def get_websocket_lists_from_dict(room_name):
+    def get_websocket_lists_from_dict(self, room_name):
         """websocket 정보 가져오기"""
 
         user_ids = []
-        inner_dict = notifier.user_access_info[room_name]
+        inner_dict = self.user_access_info[room_name]
         for ws, info in inner_dict.items():
             user_ids.append(ws)
         return user_ids
 
-    def get_userid_lists_from_dict(room_name):
+    def get_userid_lists_from_dict(self, room_name):
         """유저 아이디 리스트 가져오기"""
 
         user_ids = []
-        inner_dict = notifier.user_access_info[room_name]
+        inner_dict = self.user_access_info[room_name]
         for ws, info in inner_dict.items():
             user_ids.append(info['userid'])
         return user_ids
