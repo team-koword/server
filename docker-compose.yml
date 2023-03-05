@@ -9,6 +9,10 @@ services:
       - 7777:7777
     environment:
       TZ: "Asia/Seoul"
+    logging:
+      options:
+        max-size: "1024m"  
+        max-file: "5"
   new_game:
     build:
         context: ./cooperation
@@ -17,6 +21,10 @@ services:
       - 7778:7778
     environment:
       TZ: "Asia/Seoul"
+    logging:
+      options:
+        max-size: "1024m"  
+        max-file: "5"
   fastapi:
     build:
         context: ./websocket
@@ -25,6 +33,10 @@ services:
       - 8000:8000
     environment:
       TZ: "Asia/Seoul"
+    logging:
+      options:
+        max-size: "1024m"  
+        max-file: "5"
   nginx:
     image: nginx:1.15-alpine
     restart: unless-stopped
@@ -39,6 +51,10 @@ services:
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     environment:
       TZ: "Asia/Seoul"
+    logging:
+      options:
+        max-size: "1024m"  
+        max-file: "5"
   certbot:
     image: certbot/certbot
     restart: unless-stopped
@@ -48,4 +64,8 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     environment:
       TZ: "Asia/Seoul"
+    logging:
+      options:
+        max-size: "1024m"  
+        max-file: "5"
 
