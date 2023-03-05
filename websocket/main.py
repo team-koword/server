@@ -116,10 +116,14 @@ class Notifier:
 
             if len(self.get_websocket_lists_from_dict(room_name)) == 0:
                 logging.info(f"delete room - {room_name}")
-                del self.user_access_info[room_name]
-                del self.user_turn_count[room_name]
-                del self.recent_turn_user[room_name]
-                del self.room_info[room_name]
+                if self.user_access_info[room_name] != {}:
+                    del self.user_access_info[room_name]
+                if self.user_turn_count[room_name] != {}:
+                    del self.user_turn_count[room_name]
+                if self.recent_turn_user[room_name] != {}:
+                    del self.recent_turn_user[room_name]
+                if self.room_info[room_name] != {}:
+                    del self.room_info[room_name]
                 if limit_timer_task != {}:
                     logging.info(f"delete limit_timer - {limit_timer_task}")
                     limit_timer_task.cancel()
