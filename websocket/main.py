@@ -10,6 +10,8 @@ import aiohttp
 import time
 import sentry_sdk
 import uvloop
+import sys
+import logging
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -36,6 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logging.basicConfig(format='\n%(levelname)s:    %(asctime)s\n%(message)s\n', level=logging.INFO)
+
 
 class Notifier:
     """
@@ -43,7 +47,6 @@ class Notifier:
     """
 
     def __init__(self):
-        self.connections: dict = defaultdict(dict)                               # 기본 연결 정보
         self.generator = self.get_notification_generator()
         self.user_access_info: dict = defaultdict(lambda: defaultdict(dict))     # 현재 접속중인 소켓 정보
         self.user_turn_count: dict = defaultdict(dict)                           # user_access_info의 인덱스: 순서대로 접근하기 위해 선언한 변수
@@ -67,37 +70,6 @@ class Notifier:
             room_name = message["room_name"]
             await self._notify(msg, room_name)
 
-    def get_members(self, room_name):
-        """해당 room에 있는 소켓 구하기"""
-        # living_conn = []
-        # for i in self.connections[room_name]:
-        #     print(i)
-        #     #i = json.loads(i)
-        #     print(i.client_state.name)
-        #     print("--21312312312312")
-        #     if i.client_state.name == "CONNECTED":
-        #         living_conn.append(i)
-        #         print("asdasdasd")
-        # print(living_conn)
-        try:
-            #living_conn = []
-            # for i in self.connections[room_name]:
-            #     i = json.dumps(i)
-            #     print(i.client_state.name)
-            #     print("--21312312312312")
-            #     if i.client_state.name == "CONNECTED":
-            #         living_conn.append(i)
-            #return self.connections[room_name]
-            # living_conn = []
-            # for i in self.connections[room_name]:
-            #     #print(i)
-            #     if i.client_state.name == "CONNECTED":
-            #         living_conn.append(i)
-            # #print(living_conn)
-            return self.connections[room_name]
-        except Exception:
-            return None
-
     async def push(self, msg: str, room_name: str = None):
         message_body = {"message": msg, "room_name": room_name}
         await self.generator.asend(message_body)
@@ -105,42 +77,30 @@ class Notifier:
     async def send_to_room(self, room_name, send_info):
         """같은 방에 있는 사람에게 뿌려주기"""
         try:
-            wesocket_list = get_websocket_lists_from_dict(room_name)
+            wesocket_list = self.get_websocket_lists_from_dict(room_name)
             while len(wesocket_list) > 0:
                 websocket = wesocket_list.pop()
                 if websocket.client_state.name == "CONNECTED":
                     await websocket.send_text(send_info)
-                else:
-                    print(websocket)
         except Exception as exception:
-            print("예외는 ", exception)
+            logging.exception(exception)
 
     async def send_video_to_room(self, room_name, send_info):
         """같은 방에 있는 사람에게 비디오 보내기. 보낼 때 마다 조건을 체크해야 하니 일반 알림을 보내는 것과 분리함"""
         try:
-            wesocket_list = get_websocket_lists_from_dict(room_name)
+            wesocket_list = self.get_websocket_lists_from_dict(room_name)
             while len(wesocket_list) > 0:
                 websocket = wesocket_list.pop()
                 if websocket.client_state.name == "CONNECTED":
                     if self.user_access_info[room_name][websocket]["video_status"] == True:
                         await websocket.send_text(send_info)
-                else:
-                    print(websocket)
         except Exception as exception:
-            print("예외는12 ", exception)
+            logging.exception(exception)
         
 
     async def connect(self, websocket: WebSocket, room_name: str):
         """웹소켓 연결 설정"""
-
         await websocket.accept()
-        # if self.connections[room_name] == {} or len(self.connections[room_name]) == 0:
-        #     if self.room_info[room_name]["is_start"] != 1:
-        #         self.connections[room_name] = []
-        # self.connections[room_name].append(websocket)
-
-        # print(f"CONNECTIONS : {self.connections[room_name]}")
-
    
     def remove(self, websocket: WebSocket, room_name: str, limit_timer_task, turn_timer_task):
         """방에서 퇴장한 user 정보 설정"""
@@ -150,42 +110,38 @@ class Notifier:
             send_userid = self.user_access_info[room_name].pop(websocket, None)["userid"]
 
             # user가 나갔으면 해당 room에서 socket 지워주기
-            wesocket_list = get_websocket_lists_from_dict(room_name)
+            wesocket_list = self.get_websocket_lists_from_dict(room_name)
             if websocket in wesocket_list:
                 self.user_access_info[room_name].pop(websocket, None)
 
-            print("이건 뭐야 정말로 ", get_websocket_lists_from_dict(room_name))
-            if len(get_websocket_lists_from_dict(room_name)) == 0:
-                print("이 방은 지웁니다.", room_name)
+            if len(self.get_websocket_lists_from_dict(room_name)) == 0:
+                logging.info(f"delete room - {room_name}")
                 del self.user_access_info[room_name]
                 del self.user_turn_count[room_name]
                 del self.recent_turn_user[room_name]
                 del self.room_info[room_name]
                 if limit_timer_task != {}:
-                    print("전체타이머 지운다~~~~~~")
+                    logging.info(f"delete limit_timer - {limit_timer_task}")
                     limit_timer_task.cancel()
                     del self.limit_timer_task[room_name]
-                print("여기서는 뭐야대체", turn_timer_task)
                 if turn_timer_task != {}:
-                    print("유저 턴 타이머 지운다~~~~~~")
+                    logging.info(f"delete turn_timer_task - {turn_timer_task}")
                     turn_timer_task.cancel()
                     del self.turn_timer_task[room_name]
                 if self.ready_timer_task[room_name] != {}:
+                    logging.info(f"delete ready_timer_task - {self.ready_timer_task[room_name]}")
                     self.ready_timer_task[room_name].cancel()
                     del self.ready_timer_task[room_name]
                 if self.survival_timer_task[room_name] != {}:
+                    logging.info(f"delete survival_timer_task - {self.survival_timer_task[room_name]}")
                     self.survival_timer_task[room_name].cancel()
                     del self.survival_timer_task[room_name]
 
-            print(send_userid)
-
-            print(
-                f"CONNECTION REMOVED\nREMAINING CONNECTIONS : {get_websocket_lists_from_dict(room_name)}"
-            )
+            logging.info(f"CONNECTION REMOVED. REMAINING CONNECTIONS\n {self.get_websocket_lists_from_dict(room_name)}")
 
             return send_userid
         except Exception as exception:
-            print(exception) 
+            logging.exception(exception) 
 
     async def _notify(self, message: str, room_name: str):
         """자신의 채팅 다른사람에게 전달"""
@@ -200,11 +156,8 @@ class Notifier:
         # 같은 방에 있는 사람에게 뿌려주기
         await self.send_to_room(room_name, bytesimage)
 
-    async def insert_user_access_info(self, info, room_name, userid, websocket):
-        print(userid)
-        # 들어왔으니 그려라
-        print("들어와라", websocket)
-        print(info)
+    async def notify_user_info(self, info, room_name, userid, websocket):
+        logging.info(f"{userid} join room {room_name}\n{info}")
 
         # 같은 방에 있는 사람에게 뿌려주기
         await self.send_to_room(room_name, info)
@@ -212,7 +165,6 @@ class Notifier:
     async def delete_frame(self, room_name, send_userid):
         """유저가 나갔을 때 자기 캠 지우기"""
         self.update_user_access_info(room_name)
-        print("캠 지워주세요", send_userid)
 
         json_object = {
             "type": "delete_frame",
@@ -224,55 +176,45 @@ class Notifier:
         await self.send_to_room(room_name, json_object)
 
     def update_user_access_info(self, room_name):
-        # 이번 턴 유저 아이디 설정
-        get_conn_list = get_websocket_lists_from_dict(room_name)
+        """유저 정보 업데이트"""
+
+        get_conn_list = self.get_websocket_lists_from_dict(room_name)
         for i in get_conn_list:
             if i.client_state.name != "CONNECTED":
-                #self.connections[room_name].remove(i)
                 self.user_access_info[room_name].pop(i, None)
-        print("업데이트 후 남아있는건", self.user_access_info[room_name])
+        logging.info(f"after update_user_access_info\n{ self.user_access_info[room_name] }")
 
     def get_user_turn(self, user_turn: json, room_name: str):
         """유저의 턴 정보 전달"""
 
-        print(self.user_access_info[room_name])
         self.update_user_access_info(room_name)
-        user_lists = get_userid_lists_from_dict(room_name)
+        user_lists = self.get_userid_lists_from_dict(room_name)
         if(len(user_lists) <= 0):
             return ""
 
         if self.user_turn_count[room_name] >= len(user_lists):
             self.user_turn_count[room_name] = 0
 
-        print("이번 유저는 ", self.user_turn_count[room_name], user_lists)
-
         user_turn["userid"] = user_lists[self.user_turn_count[room_name]]
         user_turn["type"] = "send_user_turn"
         self.recent_turn_user[room_name] = user_turn["userid"]
-        print("유저 턴 줍니다~~~~~~~.", user_lists[self.user_turn_count[room_name]])
-        
 
-        # # 다음 턴 유저 아이디 설정
-        # self.user_turn_count[room_name] += 1
-        # if self.user_turn_count[room_name] >= len(user_lists):
-        #     self.user_turn_count[room_name] = 0
+        logging.info(f"this_turn - [{ room_name }] { user_lists[self.user_turn_count[room_name]] }")
 
         # client에 보내기 위해 json으로 변환
         user_turn = str(json.dumps(user_turn))
         return user_turn
     
     async def check_users(self, room_name):
-        for i in get_websocket_lists_from_dict(room_name):
+        logging.info("checking users")
+        for i in self.get_websocket_lists_from_dict(room_name):
             if i.client_state.name != "CONNECTED":
-                #self.connections[room_name].remove(i)
                 send_userid = self.user_access_info[room_name].pop(i, None)
-                print("지워라", send_userid)
                 await notifier.delete_frame(room_name, send_userid)
 
 
     async def game_server_request(self, room_name, path, method, params, game_mode=""):
         """게임서버 호출하여 데이터를 받아옴"""
-        print(room_name, path, method)
 
         api_host = ""                                                                        # 서버 주소
         headers = {'Content-Type': 'application/json', 'charset': 'UTF-8', 'Accept': '*/*'}  # http 헤더
@@ -294,9 +236,7 @@ class Notifier:
         # 경로에 따른 전달 값 설정
         send_data = self.set_game_server_send_data(game_mode, path, body, room_name)
 
-        print(url)
-        print(send_data)
-        print("구분선====================")
+        logging.info(f"url = { url }\ndata = { send_data }")
 
         # http method에 따른 처리
         try:
@@ -306,7 +246,7 @@ class Notifier:
                 #response = requests.post(url, headers=headers, data = send_data)
                 response = await self.make_post_request(url, headers, send_data)
 
-            print(response)
+            logging.info(f"response - { response }")
 
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, response)
@@ -316,7 +256,8 @@ class Notifier:
                 self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next"))
 
         except Exception as exception:
-            print(response)
+            await send_msg(exception)
+            logging.exception(exception)
 
     async def make_post_request(self, url, headers, data):
         async with aiohttp.ClientSession() as session:
@@ -344,9 +285,9 @@ class Notifier:
                 elif method == 'POST':
                     response = requests.post(url, headers=headers, data = send_data)
 
-                # next를 받아서 해당 초마다 단어를 클라이언트에게 전달
+                # next를 받아서 해당 틱마다 단어를 클라이언트에게 전달
                 await self.send_to_room(room_name, response.text)
-                print(response.text)
+                logging.info(response.text)
                 status = response.json()["status"]
 
                 await asyncio.sleep(tick_start)
@@ -354,7 +295,8 @@ class Notifier:
                 tick_start = tick_start - 0.02 if tick_start > 0.5 else 0.5
 
             except Exception as exception:
-                print(response)
+                await send_msg(exception)
+                logging.exception(exception)
         
         # 게임 끝났을 때 로직
         end_time = time.time()
@@ -368,7 +310,7 @@ class Notifier:
 
         send_data = ""
         if path == "init":
-            user_lists = get_userid_lists_from_dict(room_name)
+            user_lists = self.get_userid_lists_from_dict(room_name)
             body["users"] = user_lists
             body["size"] = self.board_size
             if game_mode == "CoOpGame":
@@ -402,7 +344,7 @@ class Notifier:
             }
             json_object = json.dumps(json_object)
 
-            print(f"{room_name} - Game_timer count: {count}")
+            logging.info(f"{room_name} - Game_timer count: {count}")
 
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, json_object)
@@ -421,6 +363,7 @@ class Notifier:
         if self.limit_timer_task[room_name] == {}:
             self.turn_timer_task[room_name].cancel()
 
+        # 단어를 1개 이상 지웠다면
         if remove_count > 0:
             self.game_timer_stop[room_name] = 1
             await asyncio.sleep(3)
@@ -435,7 +378,7 @@ class Notifier:
             }
             json_object = json.dumps(json_object)
 
-            print(f"{room_name} -> {userid} - User_timer count: {count}")
+            logging.info(f"{room_name} -> {userid} - User_timer count: {count}")
 
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, json_object)
@@ -443,7 +386,7 @@ class Notifier:
             if count == 0:
                 # 다음 턴 유저 아이디 설정
                 self.update_user_access_info(room_name)
-                user_lists = get_userid_lists_from_dict(room_name)
+                user_lists = self.get_userid_lists_from_dict(room_name)
                 self.user_turn_count[room_name] += 1
                 if self.user_turn_count[room_name] >= len(user_lists):
                     self.user_turn_count[room_name] = 0
@@ -461,7 +404,7 @@ class Notifier:
             }
             json_object = json.dumps(json_object)
 
-            print(f"{room_name} -> Ready_timer count: {count}")
+            logging.info(f"{room_name} -> Ready_timer count: {count}")
 
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, json_object)
@@ -473,6 +416,8 @@ class Notifier:
         self.ready_timer_task[room_name].cancel()
 
     async def survival_timer(self, room_name):
+        """협동게임 생존 시간 타이머"""
+
         count = 0
 
         while self.room_info[room_name]["is_start"] == 1:
@@ -482,7 +427,7 @@ class Notifier:
             }
             json_object = json.dumps(json_object)
 
-            print(f"{room_name} -> Survival_timer count: {count}")
+            logging.info(f"{room_name} -> Survival_timer count: {count}")
 
             # 같은 방에 있는 사람에게 뿌려주기
             await self.send_to_room(room_name, json_object)
@@ -493,6 +438,8 @@ class Notifier:
         self.survival_timer_task[room_name].cancel()
 
     def delete_resource(self, room_name):
+        """게임 종료 시 필요없는 방 정보 삭제"""
+
         if self.limit_timer_task[room_name] != {}:
             self.limit_timer_task[room_name].cancel()
         if self.turn_timer_task[room_name] != {}:
@@ -509,6 +456,54 @@ class Notifier:
         self.limit_timer_task[room_name] = {}
         self.game_timer_stop[room_name] = {}
 
+    async def send_msg(self, msg):
+        """슬랙으로 메시지 보내기"""
+
+        url = "https://hooks.slack.com/services/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"
+        message = (str(msg)) 
+        title = (f"Error 발생 :zap:") # 타이틀 입력
+        slack_data = {
+            "username": "websockerServer", # 보내는 사람 이름
+            "icon_emoji": ":satellite:",
+            #"channel" : "#somerandomcahnnel",
+            "attachments": [
+                {
+                    "color": "#9733EE",
+                    "fields": [
+                        {
+                            "title": title,
+                            "value": message,
+                            "short": "false",
+                        }
+                    ]
+                }
+            ]
+        }
+        byte_length = str(sys.getsizeof(slack_data))
+        headers = {'Content-Type': "application/json", 'Content-Length': byte_length}
+        try:
+            response = await self.make_post_request(url, headers, json.dumps(slack_data))
+        except Exception as exception:
+            logging.exception(exception)
+
+    def get_websocket_lists_from_dict(room_name):
+        """websocket 정보 가져오기"""
+
+        user_ids = []
+        inner_dict = notifier.user_access_info[room_name]
+        for ws, info in inner_dict.items():
+            user_ids.append(ws)
+        return user_ids
+
+    def get_userid_lists_from_dict(room_name):
+        """유저 아이디 리스트 가져오기"""
+
+        user_ids = []
+        inner_dict = notifier.user_access_info[room_name]
+        for ws, info in inner_dict.items():
+            user_ids.append(info['userid'])
+        return user_ids
+
 def image_server_request(data):
         """이미지서버 호출하여 데이터를 받아옴"""
         url = "http://localhost:9999/"                                                  # 서버 주소
@@ -516,21 +511,7 @@ def image_server_request(data):
         try:
             return requests.post(url, headers=headers, data=data)
         except Exception as exception:
-            print(exception)
-
-def get_userid_lists_from_dict(room_name):
-    user_ids = []
-    inner_dict = notifier.user_access_info[room_name]
-    for ws, info in inner_dict.items():
-        user_ids.append(info['userid'])
-    return user_ids
-
-def get_websocket_lists_from_dict(room_name):
-    user_ids = []
-    inner_dict = notifier.user_access_info[room_name]
-    for ws, info in inner_dict.items():
-        user_ids.append(ws)
-    return user_ids
+            logging.exception(exception)
 
 
 notifier = Notifier()
@@ -539,16 +520,9 @@ async def websocket_endpoint(
     websocket: WebSocket, room_name, background_tasks: BackgroundTasks
 ):
 
-    
-    print()
-    print()
-    print()
-    print("in websocket")
-    #print(websocket.client_state.name)
     await notifier.connect(websocket, room_name)
-    print("asdasd  ",notifier.room_info[room_name])
     if notifier.room_info[room_name]["is_start"] == 1:
-        print("진행중인 방은 접근 불가. 방이름은 = ", room_name)
+        logging.info(f"can't access in progress = {room_name}")
         go_back_data = {"type":"game_ing"} 
         go_back_data = json.dumps(go_back_data)
         await websocket.send_text(go_back_data)
@@ -559,18 +533,6 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
             d = json.loads(data)
             d["room_name"] = room_name
-            room_members = (notifier.get_members(room_name) if notifier.get_members(room_name) is not None else [])
-
-            # if websocket not in room_members:
-            #     print("USER NOT IN ROOM MEMBERS: RECONNECTING")
-            #     print("업슨ㄴ 웹소켓은  ",websocket)
-            #     print("룸멤버는  ",room_members)
-            #     await notifier.connect(websocket, room_name)
-            #     notifier.user_access_info[room_name][websocket] = d["userid"]
-            #     await notifier.insert_user_access_info(f"{data}", room_name, d["userid"], websocket)
-            #     # 게임보드 보내고
-            #     # 게임 시작 버튼 제거하고
-            #     await notifier.send_to_room(room_name, f"{data}")
 
             if d["type"] == 'video':
                 #data = image_server_request(data).text
@@ -585,64 +547,60 @@ async def websocket_endpoint(
                 await notifier._notify(f"{data}", room_name)
             elif d["type"] == 'info':
                 if notifier.room_info[room_name]["is_start"] == 1:
-                    print("info - 진행중인 방은 접근 불가. 방이름은 = ", room_name)
+                    logging.info(f"can't access in progress = {room_name}")
                     go_back_data = {"type":"game_ing"} 
                     go_back_data = json.dumps(go_back_data)
                     await websocket.send_text(go_back_data)
                 else:
+                    # 유저 정보 설정
                     notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
                     notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
-                    print(notifier.user_access_info[room_name])
-
-                    # 잘 남겨두자 usde_lists 뽑아내는거
-                    # user_ids = []
-                    # for key in notifier.user_access_info:
-                    #     inner_dict = notifier.user_access_info[key]
-                    #     for ws, info in inner_dict.items():
-                    #         user_ids.append(info['userid'])
 
                     if notifier.room_info[room_name]["game_mode"]:
                         d["game_mode"] = notifier.room_info[room_name]["game_mode"]
                     else:
                         d["game_mode"] = ""
 
-                    await notifier.insert_user_access_info(json.dumps(d), room_name, d["userid"], websocket)
+                    await notifier.notify_user_info(json.dumps(d), room_name, d["userid"], websocket)
             elif d["type"] == 'send_user_turn':
                 get_user_turn = notifier.get_user_turn(d, room_name)
+                # 해당 room에 유저 턴 정보가 있다면
                 if get_user_turn != "":
                     await notifier.send_to_room(room_name, get_user_turn)
             elif d["type"] == 'game_server':
-                print("게임서버 호출하러 갑니다.")
+                logging.info("go to call game_server")
+
                 path = d["path"]
                 method = d["method"]
                 params = d["params"]
                 game_mode = d["game_mode"]
+
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
                     if notifier.turn_timer_task[room_name] != {}:
                         if d["game_mode"] == "WordCard":
-                            print("game_server에서 notifier.turn_timer_task[room_name] 삭제")
+                            logging.info(f"delete {notifier.turn_timer_task[room_name]} in while game_server")
                             notifier.turn_timer_task[room_name].cancel()
+
                 if path == "init":
+                    # 처음 게임 시작 시 3초간 대기함
                     notifier.ready_timer_task[room_name] = asyncio.create_task(notifier.ready_timer(room_name, path, method, params, game_mode))
                 else:
                     await notifier.game_server_request(room_name, path, method, params, game_mode)
             elif d["type"] == "game_start":
-                print("게임시작하니 버튼 지워주세요.")
                 notifier.user_turn_count[room_name] = 0
                 notifier.room_info[room_name]["is_start"] = 1
                 await notifier.send_to_room(room_name, f"{data}")
             elif d["type"] == "limit_time_start":
-                print("전체타이머")
                 # 전체 타이머 설정
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
                     if notifier.turn_timer_task[room_name] != {}:
-                        print("limit_time_start notifier.turn_timer_task[room_name] 삭제")
+                        logging.info(f"delete {notifier.turn_timer_task[room_name]} in while limit_time_start")
                         notifier.turn_timer_task[room_name].cancel()
 
                     notifier.update_user_access_info(room_name)
-                    user_lists = get_userid_lists_from_dict(room_name)
+                    user_lists = notifier.get_userid_lists_from_dict(room_name)
 
                     notifier.game_timer_stop[room_name] = 0
                     notifier.limit_timer_task[room_name] = asyncio.create_task(notifier.game_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))
@@ -650,18 +608,19 @@ async def websocket_endpoint(
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
                     if notifier.turn_timer_task[room_name] != {}:
-                        print(notifier.turn_timer_task[room_name])
-                        print("get_timer에서 notifier.turn_timer_task[room_name] 삭제")
+                        logging.info(f"delete {notifier.turn_timer_task[room_name]} in while get_timer")
                         notifier.turn_timer_task[room_name].cancel()
                     
                     notifier.update_user_access_info(room_name)
-                    user_lists = get_userid_lists_from_dict(room_name)
+                    user_lists = notifier.get_userid_lists_from_dict(room_name)
 
+                    # 다음 사람으로 유저 턴 변경
                     if d["next_user"] == "true":
                         notifier.user_turn_count[room_name] += 1
                         if notifier.user_turn_count[room_name] >= len(user_lists):
                             notifier.user_turn_count[room_name] = 0
 
+                    # 턴을 가진 유저에게 턴 정보 전달
                     recent_turn_user = user_lists[notifier.user_turn_count[room_name]]
                     notifier.recent_turn_user[room_name] = recent_turn_user
                     if notifier.limit_timer_task[room_name] != {}:
@@ -673,34 +632,26 @@ async def websocket_endpoint(
 
     except WebSocketDisconnect:
         """소켓 연결이 끊어졌을 시"""
-        print("WebSocketDisconnect~~~~~~~~~~~~~~~~~~~~~~~~")
+        logging.info(f"WebSocketDisconnect - {websocket}")
         # 연결정보 삭제
         get_user_id = notifier.remove(websocket, room_name, notifier.limit_timer_task[room_name], notifier.turn_timer_task[room_name])
 
         # 게임이 진행중이고 내 턴이 진행중일 때 연결이 끊어졌다면 남은 사람들에게 턴을 넘겨야 한다.
         notifier.update_user_access_info(room_name)
-        user_lists = get_userid_lists_from_dict(room_name)
+        user_lists = notifier.get_userid_lists_from_dict(room_name)
+
         if notifier.room_info[room_name]["is_start"] == 1 and get_user_id == notifier.recent_turn_user[room_name] :
-            print("여기부터11111111")
             get_user_turn = notifier.get_user_turn(d, room_name)
-            print("여기부터22222222")
             if get_user_turn != "":
-                print("여기부터333333")
                 if notifier.turn_timer_task[room_name] != {}:
-                    print("여기부터444444")
-                    print(notifier.turn_timer_task[room_name])
                     if notifier.room_info[room_name]["game_mode"] == "WordCard":
-                        print("WebSocketDisconnect에서 notifier.turn_timer_task[room_name] 삭제")
+                        logging.info(f"delete {notifier.turn_timer_task[room_name]} in WebSocketDisconnect")
                         notifier.turn_timer_task[room_name].cancel()
 
-                
-                notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))   
-        # 다시 참여 하러면 게임보드 보내줘야함
-        # 또한 게임시작 버튼 지워야 한다.
+                notifier.turn_timer_task[room_name] = asyncio.create_task(notifier.turn_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))  
 
         # 연결이 끊어졌으니 내 비디오를 지우라고 전송
         await notifier.delete_frame(room_name, get_user_id)
-        #await websocket.close()
 
 @app.get("/sentry-debug")
 async def trigger_error():
