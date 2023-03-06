@@ -34,9 +34,10 @@ print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
 start = time.time()
 
 try:
-    CharDict = get_json("chars.json")
-    WordDict = get_json("words.json")
-    FindDict = get_json("finds.json")
+    FirstDict = get_json("chars.json")  # {first: {len: [words], ...}, ...}
+    LastDict = get_json("lasts.json")   # {last: {first: {len: [words], ...}, ...}, ...}
+    WordDict = get_json("words.json")   # {len: [words], ...}
+    FindDict = get_json("finds.json")   # {first: {len: [words], ...}, ...}
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -96,17 +97,6 @@ from comp_mode_functions import *
 ## response and request
 # FastAPI
 from fastapi import FastAPI
-import sentry_sdk
-
-sentry_sdk.init(
-    dsn="https://0b799141cf7c40b18cce3f9d165da751@o4504772214325248.ingest.sentry.io/4504778998218752",
-    environment="production",
-
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production,
-    traces_sample_rate=1.0,
-)
 app = FastAPI()
 
 
@@ -159,11 +149,12 @@ class InitBody(BaseModel):
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
     print(f"\n\n{C.Magenta}NEW GAME STARTED{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
     # get room data and initialize
-    global Rooms, CharDict, WordDict
+    global Rooms, FirstDict, LastDict, WordDict
     # initialize room data
     Rooms[Init.roomId].__init__()
     Room = Rooms[Init.roomId]
@@ -181,8 +172,8 @@ def init(Init: InitBody) -> InitBody:
     # get game data
     Init.moves = list()
     adds = list()
-    getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
-                Room.height, Room.width)
+    getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap,
+                adds, Room.height, Room.width)
     Init.table = Room.gameTable
     Init.moves.append(adds)
 
@@ -213,11 +204,12 @@ class CheckBody(BaseModel):
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
     print(f"\n\n{C.Magenta}CHECKING ANSWER{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
     # get room data and dictionary
-    global Rooms, CharDict, FindDict
+    global Rooms, FirstDict, LastDict, WordDict, FindDict
     Room = Rooms[Check.roomId]
     Room.turns += 1
 
@@ -234,13 +226,10 @@ def check(Check: CheckBody) -> CheckBody:
     # get similar words in word table
     else:
         Check.remWords = getSimWords(simModel, wordList, Check.answer)
-        for word in Check.remWords:
-            if word not in wordList:
-                Check.remWords.remove(word)
 
     # update room data
     Check.moves = list()
-    updateGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, 
+    updateGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
                    Check.remWords, Check.moves, Room.height, Room.width)
     print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
 
@@ -263,8 +252,8 @@ def check(Check: CheckBody) -> CheckBody:
         Room.wordMap = defaultdict(list)
         adds = list()
         # get game data again
-        getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
-                    Room.height, Room.width)
+        getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
+                    adds, Room.height, Room.width)
         Check.moves.append(adds)
         print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
 
@@ -306,6 +295,7 @@ class FinishBody(BaseModel):
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
     print(f"\n\n{C.Magenta}FINISHING GAME{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 

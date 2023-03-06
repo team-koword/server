@@ -5,9 +5,10 @@ def get_json(fileName: str) -> dict:
     with open(dirPath + fileName, "r", encoding="utf8") as file:
         json_file = json.load(file)
     return json_file
-CharDict = get_json("chars.json")
-WordDict = get_json("words.json")
-FindDict = get_json("finds.json")
+FirstDict = get_json("chars.json")  # {first: {len: [words], ...}, ...}
+LastDict = get_json("lasts.json")   # {last: {first: {len: [words], ...}, ...}, ...}
+WordDict = get_json("words.json")   # {len: [words], ...}
+FindDict = get_json("finds.json")   # {first: {len: [words], ...}, ...}
 
 
 import fasttext
@@ -36,7 +37,7 @@ EMPTY, DISCNT = "  ", "X"
 CHAR, CONN = 0, 1
 SIZE = 11
 def init(roomId = "room01", size = SIZE):
-    global Rooms, CharDict, WordDict, FindDict
+    global Rooms, FirstDict, WordDict, FindDict
     Room = Rooms[roomId]
     Room.roomId = roomId
     Room.turns = 0
@@ -49,16 +50,18 @@ def init(roomId = "room01", size = SIZE):
     # get game data
     moves = list()
     adds = list()
-    getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
+    getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, adds, 
                 Room.height, Room.width)
     moves.append(adds)
 
     # print at terminal(for test)
     printGameTable(Room.gameTable, Room.height, Room.width)
+    wordList = Room.wordMap.keys()
+    print(f"{len(wordList)} words in table: {wordList}")
 
 
-def check(roomId = "room01", answer = "사과"):
-    global Rooms, CharDict, FindDict
+def check(answer, roomId = "room01"):
+    global Rooms, FirstDict, FindDict
     Room = Rooms[roomId]
     Room.turns += 1
 
@@ -66,41 +69,60 @@ def check(roomId = "room01", answer = "사과"):
     wordList = list(Room.wordMap.keys())
     # if the answer not in dictionary
     if answer not in FindDict[answer[0]][str(len(answer))]:
-        removedWords = []
+        remWords = []
     # if the answer in word table, remove only the word(includes duplicated)
     elif answer in wordList:
-        removedWords = [answer]
+        remWords = [answer]
     # get similar words in word table
     else:
-        removedWords = getSimWords(simModel, wordList, answer)
-    print(removedWords)
+        remWords = getSimWords(simModel, wordList, answer)
+        for word in remWords:
+            if word not in wordList:
+                remWords.remove(word)
+    print(remWords)
 
     # update room data
     moves = list()
-    updateGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, 
-                   removedWords, moves, Room.height, Room.width)
+    updateGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
+                   remWords, moves, Room.height, Room.width)
 
     # update user score and answer log
-    increase = len(removedWords)
+    increase = len(remWords)
     increase = increase
-    Room.answerLog.append([Room.turns, answer, removedWords])
+    Room.answerLog.append([Room.turns, answer, remWords])
 
     # reset table if words in table less than standard count
     MIN = 20
     if len(list(Room.wordMap.keys())) < MIN:
+        # set move information for all cells -> empty
         SIZE = Room.height * Room.width
         removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
         moves.append(removes)
+        # reset gameTable
         Room.gameTable = defaultdict(list)
         initGameTable(Room.gameTable, Room.height, Room.width)
         adds = list()
-        getGameData(CharDict, WordDict, Room.gameTable, Room.wordMap, adds, 
+        getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, adds, 
                     Room.height, Room.width)
         moves.append(adds)
 
     # print at terminal(for test)
+    for i, move in enumerate(moves):
+        if i == 0:
+            print(f"removes: {move}")
+        elif i == 1:
+            print(f"falls: {move}")
+        elif i == 2:
+            print(f"adds: {move}")
+        elif i == 3:
+            print(f"(reset)removes: {move}")
+        elif i == 4:
+            print(f"(reset)adds: {move}")
     printGameTable(Room.gameTable, Room.height, Room.width)
-    print(*moves)
+    wordList = Room.wordMap.keys()
+    print(f"{len(wordList)} words in table: {wordList}")
 
 init()
-check() 
+while True:
+    answer = input()
+    check(answer)

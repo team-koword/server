@@ -86,18 +86,6 @@ from coop_mode_functions import *
 ## response and request
 # FastAPI
 from fastapi import FastAPI
-import sentry_sdk
-
-sentry_sdk.init(
-    dsn="https://1ae39f0f338248a8abbe893a34f8ee13@o4504772214325248.ingest.sentry.io/4504779026137088",
-    environment="production",
-
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production,
-    traces_sample_rate=1.0,
-)
-
 app = FastAPI()
 
 
@@ -147,6 +135,7 @@ class InitBody(BaseModel):
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
     print(f"\n\n{C.Blue}NEW GAME STARTED{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
@@ -188,6 +177,7 @@ class NextBody(BaseModel):
 @app.post("/next")
 def next(Next: NextBody) -> NextBody:
     print(f"\n\n{C.Blue}NEW WORD FALLING{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Next.roomId}{C.End}")
     start = time.time()
 
@@ -260,6 +250,7 @@ class CheckBody(BaseModel):
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
     print(f"\n\n{C.Blue}CHECKING ANSWER{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
@@ -345,6 +336,7 @@ class FinishBody(BaseModel):
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
     print(f"\n\n{C.Blue}FINISHING GAME{C.End}")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 
@@ -378,3 +370,9 @@ def finish(Finish: FinishBody) -> FinishBody:
     del(Rooms[Finish.roomId])
     
     return Finish
+
+
+# sentry
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
