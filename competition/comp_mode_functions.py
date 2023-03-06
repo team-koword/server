@@ -107,7 +107,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
         -> Tuple[int, int, int, str, str]:
         first, last = str(), str()
         # get random direction
-        dir = choice([RIGHT, RIGHT, DOWN])
+        dir = choice([RIGHT, RIGHT, RIGHT, RIGHT, DOWN])
         # check rightwards first
         if dir == RIGHT:
             loc, dist, first, last \
