@@ -219,7 +219,7 @@ class Notifier:
                 await notifier.delete_frame(room_name, send_userid)
 
 
-    async def game_server_request(self, room_name, path, method, params, game_mode=""):
+    async def game_server_request(self, room_name, path, method, params, websocket, game_mode=""):
         """게임서버 호출하여 데이터를 받아옴"""
 
         api_host = ""                                                                        # 서버 주소
@@ -252,6 +252,11 @@ class Notifier:
                 #response = requests.post(url, headers=headers, data = send_data)
                 response = await self.make_post_request(url, headers, send_data)
 
+                if path == "check":
+                    d = json.loads(response)
+                    d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
+                    response = json.dumps(d)
+
             logging.info(f"response - { response }")
 
             # 같은 방에 있는 사람에게 뿌려주기
@@ -259,7 +264,7 @@ class Notifier:
 
             # 새로운 게임은 init시 클라이언트에서는 할일이 없어서 init완료 시 바로 next요청
             if path == "init" and game_mode == "CoOpGame":
-                self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next"))
+                self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next", websocket))
 
         except Exception as exception:
             await send_msg(exception)
@@ -270,7 +275,7 @@ class Notifier:
             async with session.post(url, headers=headers, data=data) as response:
                 return await response.text()
 
-    async def send_next_word(self, method, game_mode, body, headers, room_name, api_host, path):
+    async def send_next_word(self, method, game_mode, body, headers, room_name, api_host, path, websocket):
         """서버에 뿌려줄 단어 매 틱 마다 요청 후 클라이언트에 전달"""
         response = ""
         url = api_host + path
@@ -308,7 +313,7 @@ class Notifier:
         end_time = time.time()
         survival_time = int(end_time - start_time)
         params = { "type": "finish", "times": survival_time}
-        await self.game_server_request(room_name, "finish", "POST", params, game_mode)
+        await self.game_server_request(room_name, "finish", "POST", params, websocket, game_mode)
         self.delete_resource(room_name)
 
     def set_game_server_send_data(self, game_mode, path, body, room_name):
@@ -334,7 +339,7 @@ class Notifier:
 
         return send_data
 
-    async def game_timer(self, room_name, userid):
+    async def game_timer(self, room_name, userid, websocket):
         """게임 전체 1분 타이머"""
 
         count = self.game_time
@@ -360,7 +365,7 @@ class Notifier:
 
         
         params = { "type": "finish", }
-        await self.game_server_request(room_name, "finish", "POST", params, "WordCard")
+        await self.game_server_request(room_name, "finish", "POST", params, websocket, "WordCard")
         self.delete_resource(room_name)
 
     async def turn_timer(self, room_name, userid, remove_count = 0):
@@ -400,7 +405,7 @@ class Notifier:
             count -= 1
             await asyncio.sleep(1)
 
-    async def ready_timer(self, room_name, path, method, params, game_mode):
+    async def ready_timer(self, room_name, path, method, params, game_mode, websocket):
         count = self.ready_time
 
         while count >= 0:
@@ -418,7 +423,7 @@ class Notifier:
             count -= 1
             await asyncio.sleep(1)
 
-        await self.game_server_request(room_name, path, method, params, game_mode)
+        await self.game_server_request(room_name, path, method, params, websocket, game_mode)
         self.ready_timer_task[room_name].cancel()
 
     async def survival_timer(self, room_name):
@@ -519,6 +524,18 @@ def image_server_request(data):
         except Exception as exception:
             logging.exception(exception)
 
+def get_color() -> str:
+    from random import randint
+    r, g, b = 0, 0, 0
+    # get rgb code
+    while True:
+        r, g, b = (randint(45, 255) for _ in range(3))
+        if r + g + b > 200:
+            break
+    # rgb to hex
+    hex = "#{:02x}{:02x}{:02x}".format(r, g, b)
+    return hex
+
 
 notifier = Notifier()
 @app.websocket("/ws/{room_name}")
@@ -550,7 +567,8 @@ async def websocket_endpoint(
             elif d["type"] == "video_status":
                 notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
             elif d["type"] == 'message':
-                await notifier._notify(f"{data}", room_name)
+                d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
+                await notifier._notify(json.dumps(d), room_name)
             elif d["type"] == 'info':
                 if notifier.room_info[room_name]["is_start"] == 1:
                     logging.info(f"can't access in progress = {room_name}")
@@ -561,6 +579,9 @@ async def websocket_endpoint(
                     # 유저 정보 설정
                     notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
                     notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
+                    notifier.user_access_info[room_name][websocket]["color_code"] = get_color()
+
+                    d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
 
                     if notifier.room_info[room_name]["game_mode"]:
                         d["game_mode"] = notifier.room_info[room_name]["game_mode"]
@@ -590,9 +611,9 @@ async def websocket_endpoint(
 
                 if path == "init":
                     # 처음 게임 시작 시 3초간 대기함
-                    notifier.ready_timer_task[room_name] = asyncio.create_task(notifier.ready_timer(room_name, path, method, params, game_mode))
+                    notifier.ready_timer_task[room_name] = asyncio.create_task(notifier.ready_timer(room_name, path, method, params, game_mode, websocket))
                 else:
-                    await notifier.game_server_request(room_name, path, method, params, game_mode)
+                    await notifier.game_server_request(room_name, path, method, params, websocket, game_mode)
             elif d["type"] == "game_start":
                 notifier.user_turn_count[room_name] = 0
                 notifier.room_info[room_name]["is_start"] = 1
@@ -609,7 +630,7 @@ async def websocket_endpoint(
                     user_lists = notifier.get_userid_lists_from_dict(room_name)
 
                     notifier.game_timer_stop[room_name] = 0
-                    notifier.limit_timer_task[room_name] = asyncio.create_task(notifier.game_timer(room_name, user_lists[notifier.user_turn_count[room_name]]))
+                    notifier.limit_timer_task[room_name] = asyncio.create_task(notifier.game_timer(room_name, user_lists[notifier.user_turn_count[room_name]], websocket))
             elif d["type"] == "get_timer":
                 get_user_turn = notifier.get_user_turn(d, room_name)
                 if get_user_turn != "":
