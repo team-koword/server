@@ -213,7 +213,7 @@ def check(Check: CheckBody) -> CheckBody:
     # get words in game table
     wordList = list(Room.wordMap.keys())
     # if the answer not in dictionary
-    if  Check.answer[0] not in FindDict \
+    if not Check.answer or Check.answer[0] not in FindDict \
         or str(len(Check.answer)) not in FindDict[Check.answer[0]] \
         or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
         Check.remWords = []
