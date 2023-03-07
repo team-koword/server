@@ -267,7 +267,7 @@ class Notifier:
                 self.turn_timer_task[room_name] = asyncio.create_task(self.send_next_word("POST", game_mode, body, headers, room_name, api_host, "next", websocket))
 
         except Exception as exception:
-            await send_msg(exception)
+            await self.send_msg(exception)
             logging.exception(exception)
 
     async def make_post_request(self, url, headers, data):
@@ -306,7 +306,7 @@ class Notifier:
                 tick_start = tick_start - 0.02 if tick_start > 0.5 else 0.5
 
             except Exception as exception:
-                await send_msg(exception)
+                await self.send_msg(exception)
                 logging.exception(exception)
         
         # 게임 끝났을 때 로직
