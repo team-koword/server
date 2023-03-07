@@ -21,14 +21,21 @@ START = time.time()
 import os
 dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
+# get json file function
+def get_json(fileName: str) -> dict:
+    import json
+    with open(dirPath + fileName, "r", encoding="utf8") as file:
+        json_file = json.load(file)
+    return json_file
+
 # get json data
 print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
 start = time.time()
 
 import json
 try:
-    with open(dirPath + "./words.json", "r", encoding="utf8") as file:
-        WordDict = json.load(file)
+    WordDict = get_json("words.json")   # {len: [words], ...}
+    FindDict = get_json("finds.json")   # {len: {char: [words], ...}, ...}
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -40,7 +47,7 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model(dirPath + "./model.bin")
+    simModel = fasttext.load_model(dirPath + "../model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -255,13 +262,14 @@ def check(Check: CheckBody) -> CheckBody:
     start = time.time()
 
     # get room data and dictionary
-    global Rooms, WordDict
+    global Rooms, WordDict, FindDict
     Room = Rooms[Check.roomId]
     Room.tries += 1
 
     # if the answer not in dictionary
-    if str(len(Check.answer)) not in WordDict \
-        or Check.answer not in WordDict[str(len(Check.answer))]:
+    if str(len(Check.answer)) not in FindDict \
+        or Check.answer[0] not in FindDict[str(len(Check.answer))] \
+        or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
         Check.remWords = []
         Check.moveInfo = []
         Check.increase = 0

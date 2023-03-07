@@ -5,7 +5,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # get similarity between answer word and comparing word
 def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
-    # 
     def _jamo(word):
         def __tokenize(jamo):
             return jamo if jamo else "-"
@@ -31,9 +30,7 @@ def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
 def getSimWords(simModel, wordList: list, answer: str) -> list:
     simData = list()
     simWords = list()
-    MIN = 0.4
-    # CENT = 100
-    # CALIB = 3
+    MIN = 0.35
 
     # get similar words with similarity greater or equal than MIN
     for word in wordList:
@@ -45,10 +42,6 @@ def getSimWords(simModel, wordList: list, answer: str) -> list:
     if not simData:
         return []
     simData.sort(key = lambda x: -x[0])
-    # # limit maximum number of similar words
-    # mostSim = simData[0][0]
-    # CUT = int((mostSim * CENT) // CALIB)
-    # simWords = list(word[1] for word in simData)[:CUT]
     simWords = list(word[1] for word in simData)
 
     return simWords

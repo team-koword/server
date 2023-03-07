@@ -405,7 +405,7 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
         gameTable[loc] = [EMPTY, DISCNT]
 
 
-    # updateGameData(FirstDict, LastDict, WordDict, FindDict,
+    # updateGameData(FirstDict, LastDict, WordDict,
     #                gameTable, wordMap, remWords, moves, height, width) -> None:
     # TODO: remove words in remWords
     removes = list()

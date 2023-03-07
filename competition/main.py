@@ -37,7 +37,7 @@ try:
     FirstDict = get_json("chars.json")  # {first: {len: [words], ...}, ...}
     LastDict = get_json("lasts.json")   # {last: {first: {len: [words], ...}, ...}, ...}
     WordDict = get_json("words.json")   # {len: [words], ...}
-    FindDict = get_json("finds.json")   # {first: {len: [words], ...}, ...}
+    FindDict = get_json("finds.json")   # {len: {char: [words], ...}, ...}
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -49,7 +49,7 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model(dirPath + "./model.bin")
+    simModel = fasttext.load_model(dirPath + "../model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
@@ -216,8 +216,8 @@ def check(Check: CheckBody) -> CheckBody:
     # get words in game table
     wordList = list(Room.wordMap.keys())
     # if the answer not in dictionary
-    if  Check.answer[0] not in FindDict \
-        or str(len(Check.answer)) not in FindDict[Check.answer[0]] \
+    if str(len(Check.answer)) not in FindDict \
+        or Check.answer[0] not in FindDict[str(len(Check.answer))] \
         or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
         Check.remWords = []
     # if the answer in word table, remove only the word(includes duplicated)
