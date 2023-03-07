@@ -237,7 +237,8 @@ def check(Check: CheckBody) -> CheckBody:
     increase = len(Check.remWords)
     Room.users[Check.user] += increase
     Check.increase = increase
-    Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
+    if Check.remWords:
+        Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
 
     # reset table if words in table less than standard count
     MIN = 35
