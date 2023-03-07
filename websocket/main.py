@@ -254,7 +254,7 @@ class Notifier:
 
                 if path == "check" and response != "Internal Server Error":
                     d = json.loads(response)
-                    d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
+                    d["color"] = notifier.user_access_info[room_name][websocket]["color"]
                     response = json.dumps(d)
 
             logging.info(f"response - { response }")
@@ -567,7 +567,7 @@ async def websocket_endpoint(
             elif d["type"] == "video_status":
                 notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
             elif d["type"] == 'message':
-                d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
+                d["color"] = notifier.user_access_info[room_name][websocket]["color"]
                 await notifier._notify(json.dumps(d), room_name)
             elif d["type"] == 'info':
                 if notifier.room_info[room_name]["is_start"] == 1:
@@ -579,9 +579,9 @@ async def websocket_endpoint(
                     # 유저 정보 설정
                     notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
                     notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
-                    notifier.user_access_info[room_name][websocket]["color_code"] = get_color()
+                    notifier.user_access_info[room_name][websocket]["color"] = get_color()
 
-                    d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
+                    d["color"] = notifier.user_access_info[room_name][websocket]["color"]
 
                     if notifier.room_info[room_name]["game_mode"]:
                         d["game_mode"] = notifier.room_info[room_name]["game_mode"]
