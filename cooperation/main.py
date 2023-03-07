@@ -47,7 +47,7 @@ start = time.time()
 
 import fasttext
 try:
-    simModel = fasttext.load_model(dirPath + "../model.bin")
+    simModel = fasttext.load_model(dirPath + "model.bin")
     end = time.time()
     print(f"{C.Green}SUCCESS{C.End} to load fast-text model in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
