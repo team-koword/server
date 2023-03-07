@@ -252,7 +252,7 @@ class Notifier:
                 #response = requests.post(url, headers=headers, data = send_data)
                 response = await self.make_post_request(url, headers, send_data)
 
-                if path == "check" and response != "Internal Server Error":
+                if path == "check" and response.status_code == 200:
                     d = json.loads(response)
                     d["color_code"] = notifier.user_access_info[room_name][websocket]["color_code"]
                     response = json.dumps(d)
