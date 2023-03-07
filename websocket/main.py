@@ -579,7 +579,8 @@ async def websocket_endpoint(
                     # 유저 정보 설정
                     notifier.user_access_info[room_name][websocket]["userid"] = d["userid"]
                     notifier.user_access_info[room_name][websocket]["video_status"] = d["video_status"]
-                    notifier.user_access_info[room_name][websocket]["color"] = get_color()
+                    if not notifier.user_access_info[room_name][websocket].get("color", 0):
+                        notifier.user_access_info[room_name][websocket]["color"] = get_color()
 
                     d["color"] = notifier.user_access_info[room_name][websocket]["color"]
 
