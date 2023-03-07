@@ -269,7 +269,7 @@ def check(Check: CheckBody) -> CheckBody:
     # if the answer not in dictionary
     if str(len(Check.answer)) not in FindDict \
         or Check.answer[0] not in FindDict[str(len(Check.answer))] \
-        or Check.answer not in FindDict[Check.answer[0]][str(len(Check.answer))]:
+        or Check.answer not in FindDict[str(len(Check.answer))][Check.answer[0]]:
         Check.remWords = []
         Check.moveInfo = []
         Check.increase = 0
