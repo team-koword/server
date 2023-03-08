@@ -603,8 +603,10 @@ async def websocket_endpoint(
                 params = d["params"]
                 game_mode = d["game_mode"]
 
-                get_user_turn = notifier.get_user_turn(d, room_name)
-                if get_user_turn != "":
+                #get_user_turn = notifier.get_user_turn(d, room_name)
+                notifier.update_user_access_info(room_name)
+                turn_list = notifier.get_userid_lists_from_dict(room_name)
+                if len(turn_list) != 0:
                     if notifier.turn_timer_task[room_name] != {}:
                         if d["game_mode"] == "WordCard":
                             logging.info(f"delete {notifier.turn_timer_task[room_name]} in while game_server")
@@ -633,8 +635,11 @@ async def websocket_endpoint(
                     notifier.game_timer_stop[room_name] = 0
                     notifier.limit_timer_task[room_name] = asyncio.create_task(notifier.game_timer(room_name, user_lists[notifier.user_turn_count[room_name]], websocket))
             elif d["type"] == "get_timer":
-                get_user_turn = notifier.get_user_turn(d, room_name)
-                if get_user_turn != "":
+                #get_user_turn = notifier.get_user_turn(d, room_name)
+                #if get_user_turn != "":
+                notifier.update_user_access_info(room_name)
+                turn_list = notifier.get_userid_lists_from_dict(room_name)
+                if len(turn_list) != 0:
                     if notifier.turn_timer_task[room_name] != {}:
                         logging.info(f"delete {notifier.turn_timer_task[room_name]} in while get_timer")
                         notifier.turn_timer_task[room_name].cancel()
