@@ -63,67 +63,67 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     SIZE = height * width
     RIGHT, DOWN, NODIR = 1, width, 0
 
-    # get rightwards word information
-    def _right(FirstDict: dict, LastDict: dict, gameTable: dict, loc: int,
-               height: int, width: int) \
-        -> Tuple[int, int, str, str]:
-        first, last = str(), str()
-        # get distance
-        dist = getRightDist(gameTable, loc, CHAR, height, width)
-        # check right cell first(for using LastDict)
-        if getCol(loc, width) + dist < width - 1 \
-            and gameTable[loc + dist][CONN] == DISCNT \
-            and gameTable[loc + dist][CHAR] in LastDict:
-            last = gameTable[loc + dist][CHAR]
-            dist += 1
-        # check left cell
-        if getCol(loc, width) > 0 and gameTable[loc - 1][CONN] == DISCNT \
-            and (((last and dist + 1 in LastDict[last] \
-                    and gameTable[loc - 1][CHAR] in LastDict[last][dist + 1])) \
-                or (not last and gameTable[loc - 1][CHAR] in FirstDict)):
-            first = gameTable[loc - 1][CHAR]
-            dist += 1
-            loc -= 1
-        return loc, dist, first, last
-
-    # get downdwards word information
-    def _down(LastDict: dict, gameTable: dict, loc: int,
-              height: int, width: int) \
-        -> Tuple[int, int, str, str]:
-        first, last = str(), str()
-        # get distance
-        dist = getDownDist(gameTable, loc, CHAR, height, width)
-        # check below cell
-        if getRow(loc, width) + dist < height - 1 \
-            and gameTable[loc + dist * width][CONN] == DISCNT \
-            and gameTable[loc + dist * width][CHAR] in LastDict:
-            last = gameTable[loc + dist * width][CHAR]
-            dist += 1
-        return loc, dist, first, last
-
     # get random direction and following information -> loc, dir, dist, first, last
     def _dir(FirstDict: dict, LastDict: dict, gameTable: dict, loc: int, 
              height: int, width: int) \
         -> Tuple[int, int, int, str, str]:
+        # get rightwards word information
+        def __right(FirstDict: dict, LastDict: dict, gameTable: dict, loc: int,
+                height: int, width: int) \
+            -> Tuple[int, int, str, str]:
+            first, last = str(), str()
+            # get distance
+            dist = getRightDist(gameTable, loc, CHAR, height, width)
+            # check right cell first(for using LastDict)
+            if getCol(loc, width) + dist < width - 1 \
+                and gameTable[loc + dist][CONN] == DISCNT \
+                and gameTable[loc + dist][CHAR] in LastDict:
+                last = gameTable[loc + dist][CHAR]
+                dist += 1
+            # check left cell
+            if getCol(loc, width) > 0 and gameTable[loc - 1][CONN] == DISCNT \
+                and (((last and dist + 1 in LastDict[last] \
+                        and gameTable[loc - 1][CHAR] in LastDict[last][dist + 1])) \
+                    or (not last and gameTable[loc - 1][CHAR] in FirstDict)):
+                first = gameTable[loc - 1][CHAR]
+                dist += 1
+                loc -= 1
+            return loc, dist, first, last
+
+        # get downdwards word information
+        def __down(LastDict: dict, gameTable: dict, loc: int,
+                height: int, width: int) \
+            -> Tuple[int, int, str, str]:
+            first, last = str(), str()
+            # get distance
+            dist = getDownDist(gameTable, loc, CHAR, height, width)
+            # check below cell
+            if getRow(loc, width) + dist < height - 1 \
+                and gameTable[loc + dist * width][CONN] == DISCNT \
+                and gameTable[loc + dist * width][CHAR] in LastDict:
+                last = gameTable[loc + dist * width][CHAR]
+                dist += 1
+            return loc, dist, first, last
+
         first, last = str(), str()
         # get random direction
         dir = choice([RIGHT, RIGHT, RIGHT, RIGHT, DOWN])
         # check rightwards first
         if dir == RIGHT:
             loc, dist, first, last \
-                = _right(FirstDict, LastDict, gameTable, loc, height, width)
+                = __right(FirstDict, LastDict, gameTable, loc, height, width)
             if dist <= 1:
                 dir = DOWN
                 loc, dist, first, last \
-                    = _down(LastDict, gameTable, loc, height, width)
+                    = __down(LastDict, gameTable, loc, height, width)
         # check downwards
         else:
             loc, dist, first, last \
-                = _down(LastDict, gameTable, loc, height, width)
+                = __down(LastDict, gameTable, loc, height, width)
             if dist <= 1:
                 dir = RIGHT
                 loc, dist, first, last \
-                    = _right(FirstDict, LastDict, gameTable, loc, height, width)
+                    = __right(FirstDict, LastDict, gameTable, loc, height, width)
         # if both directions unavailable
         if dist <= 1:
             dir = NODIR
@@ -174,14 +174,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     def _randword(WordDict: dict, wordMap: dict, dist: int) -> str:
         # set random length list with calibrating
         dist = min(dist, 5)
-        if dist == 2:
-            end = 50
-        elif dist == 3:
-            end = 74
-        elif dist == 4:
-            end = 98
-        else:
-            end = 99
+        end = [50, 74, 98, 99][dist - 2]
         # get a random length
         rand = choice(range(end))
         if rand < 50:
@@ -301,7 +294,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             word = _randchar(FirstDict)
 
         # try to use the last letter
-        if last:
+        if last and not word:
             word = _randlast(LastDict, wordMap, last, first, dist)
             if not word:
                 dist -= 1
@@ -344,7 +337,7 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     SIZE = height * width
 
     # get word by loc from wordMap
-    def _get(wordMap: dict, loc: int) -> Tuple[str, list]:
+    def __get(wordMap: dict, loc: int) -> Tuple[str, list]:
         for word, locs in wordMap.items():
             if locs[-1] == loc:
                 return word, locs[:]
@@ -354,7 +347,7 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     def _rightwards(gameTable: dict, wordMap: dict, falls: list, loc: int, 
                     height: int, width: int) -> None:
         # get falling distances of each character
-        word, locs = _get(wordMap, loc)
+        word, locs = __get(wordMap, loc)
         _falls = list()
         for i in range(len(word)):
             _falls.append(getDownDist(gameTable, locs[i], CHAR, height, width) - 1)
@@ -383,7 +376,7 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     def _downwards(gameTable: dict, wordMap: dict, falls: list, loc: int, 
                    height: int, width: int) -> None:
         # get falling distance of whole word
-        word, locs = _get(wordMap, loc)
+        word, locs = __get(wordMap, loc)
         fall = getDownDist(gameTable, loc, CHAR, height, width) - 1
         if fall == 0:
             return

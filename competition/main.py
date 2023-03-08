@@ -9,6 +9,7 @@ print(f"\n\n{C.white}{C.B_magenta}COMPETETION MODE{C.End}")
 # start server
 print(f"\n\n{C.Magenta}GAME SERVER STARTED{C.End}")
 
+
 # test run-time
 import time
 START = time.time()
@@ -42,6 +43,7 @@ try:
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
     print(f"{C.red}FAIL{C.End} to load dictionary: {err}")
+
 
 # get vector similarity model
 print(f"LOADING DATA: {C.Cyan}fast-text model{C.End}")
@@ -149,7 +151,7 @@ class InitBody(BaseModel):
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
     print(f"\n\n{C.Magenta}NEW GAME STARTED{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
@@ -204,7 +206,7 @@ class CheckBody(BaseModel):
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
     print(f"\n\n{C.Magenta}CHECKING ANSWER{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
@@ -296,7 +298,7 @@ class FinishBody(BaseModel):
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
     print(f"\n\n{C.Magenta}FINISHING GAME{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 

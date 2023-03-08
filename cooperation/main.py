@@ -9,6 +9,7 @@ print(f"\n\n{C.white}{C.B_blue}COOPERATION MODE{C.End}")
 # start server
 print(f"\n\n{C.Blue}GAME SERVER STARTED{C.End}")
 
+
 # test run-time
 import time
 START = time.time()
@@ -21,12 +22,14 @@ START = time.time()
 import os
 dirPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
+
 # get json file function
 def get_json(fileName: str) -> dict:
     import json
     with open(dirPath + fileName, "r", encoding="utf8") as file:
         json_file = json.load(file)
     return json_file
+
 
 # get json data
 print(f"LOADING DATA: {C.Cyan}dictionary{C.End}")
@@ -40,6 +43,7 @@ try:
     print(f"{C.Green}SUCCESS{C.End} to load dictionary in {C.Cyan}{end - start}{C.End} secs")
 except Exception as err:
     print(f"{C.red}FAIL{C.End} to load dictionary: {err}")
+
 
 # get vector similarity model
 print(f"LOADING DATA: {C.Cyan}fast-text model{C.End}")
@@ -142,7 +146,7 @@ class InitBody(BaseModel):
 @app.post("/init")
 def init(Init: InitBody) -> InitBody:
     print(f"\n\n{C.Blue}NEW GAME STARTED{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Init.roomId}{C.End}")
     start = time.time()
 
@@ -184,7 +188,7 @@ class NextBody(BaseModel):
 @app.post("/next")
 def next(Next: NextBody) -> NextBody:
     print(f"\n\n{C.Blue}NEW WORD FALLING{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Next.roomId}{C.End}")
     start = time.time()
 
@@ -194,18 +198,11 @@ def next(Next: NextBody) -> NextBody:
     NEW, OVER = -1, 0
 
     # get random word with random length, which falls at random column
-    from random import choice, randint
+    from random import choice, choices, randint
 
-    rand = choice(range(100))
-    if rand < 50:
-        length = 2
-    elif 50 <= rand < 74:
-        length = 3
-    elif 74 <= rand < 98:
-        length = 4
-    else:
-        length = 5
-    Next.length = length
+    lengths = [2, 3, 4, 5]
+    weights = [50, 24, 24, 2]
+    Next.length = choices(lengths, weights)[0]
 
     while True:
         Next.word = choice(WordDict[str(Next.length)])
@@ -215,8 +212,8 @@ def next(Next: NextBody) -> NextBody:
     Next.left = randint(0, Room.width - Next.length)
     
     # set game information with dummy value for fallWord function
-    for i in range(len(Next.word)):
-        Room.gameTable[Next.left - Room.width + i] = Next.word[i]
+    for i, char in enumerate(Next.word):
+        Room.gameTable[Next.left - Room.width + i] = char
     Room.wordMap[Next.word] = Next.left - Room.width
     Room.rowMap[NEW].append(Next.word)
     
@@ -257,7 +254,7 @@ class CheckBody(BaseModel):
 @app.post("/check")
 def check(Check: CheckBody) -> CheckBody:
     print(f"\n\n{C.Blue}CHECKING ANSWER{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Check.roomId}{C.End}")
     start = time.time()
 
@@ -344,7 +341,7 @@ class FinishBody(BaseModel):
 @app.post("/finish")
 def finish(Finish: FinishBody) -> FinishBody:
     print(f"\n\n{C.Blue}FINISHING GAME{C.End}")
-    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"{C.Cyan}{time.strftime('%Y-%m-%d %H:%M:%S')}{C.End}")
     print(f"room {C.Cyan}{Finish.roomId}{C.End}")
     start = time.time()
 
