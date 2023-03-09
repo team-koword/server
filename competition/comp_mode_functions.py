@@ -82,8 +82,8 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 dist += 1
             # check left cell
             if getCol(loc, width) > 0 and gameTable[loc - 1][CONN] == DISCNT \
-                and (((last and dist + 1 in LastDict[last] \
-                        and gameTable[loc - 1][CHAR] in LastDict[last][dist + 1])) \
+                and (((last and dist < 5 and str(dist + 1) in LastDict[last] \
+                        and gameTable[loc - 1][CHAR] in LastDict[last][str(dist + 1)])) \
                     or (not last and gameTable[loc - 1][CHAR] in FirstDict)):
                 first = gameTable[loc - 1][CHAR]
                 dist += 1
@@ -408,8 +408,8 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             if gameTable[loc][CHAR] != EMPTY:
                 removes.append([loc, SIZE + i, word[j]])
                 gameTable[loc] = [EMPTY, DISCNT]
-    # print("removed")
-    # printGameTable(gameTable, height, width)
+    print("removed")
+    printGameTable(gameTable, height, width)
 
     # TODO: fall characters remaining on gameTable
     falls = list()
@@ -424,15 +424,15 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             _downwards(gameTable, wordMap, falls, loc, height, width)
         else:
             _nowards(gameTable, falls, loc, height, width)
-    # print("falled")
-    # printGameTable(gameTable, height, width)
+    print("falled")
+    printGameTable(gameTable, height, width)
 
     # TODO: add new characters in empty cells
     adds = list()
     getGameData(FirstDict, LastDict, WordDict, gameTable, wordMap,
                 adds, height, width)
-    # print("added")
-    # printGameTable(gameTable, height, width)
+    print("added")
+    printGameTable(gameTable, height, width)
 
     # update moves
     moves.append(removes)

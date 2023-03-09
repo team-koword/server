@@ -243,7 +243,7 @@ def check(Check: CheckBody) -> CheckBody:
         Room.answerLog.append([Room.turns, Check.answer, Check.remWords])
 
     # reset table if words in table less than standard count
-    MIN = 35
+    MIN = 40
     if len(list(Room.wordMap.keys())) < MIN:
         # set move information for all cells -> empty
         SIZE = Room.height * Room.width
@@ -265,16 +265,39 @@ def check(Check: CheckBody) -> CheckBody:
     # print at terminal(for test)
     for i, move in enumerate(Check.moves):
         if i == 0:
-            print(f"removes: {move}")
+            print(f"removes: {len(move)} {move}")
         elif i == 1:
-            print(f"falls: {move}")
+            print(f"falls: {len(move)} {move}")
         elif i == 2:
-            print(f"adds: {move}")
+            print(f"adds: {len(move)} {move}")
         elif i == 3:
-            print(f"(reset)removes: {move}")
+            print(f"(reset)removes: {len(move)} {move}")
         elif i == 4:
-            print(f"(reset)adds: {move}")
+            print(f"(reset)adds: {len(move)} {move}")
     printGameTable(Room.gameTable, Room.height, Room.width)
+
+    # init gameTable if removed and added chars counts different(error)
+    if len(Check.moves[0]) != len(Check.moves[2]):
+        print(f"{C.red}ERROR{C.End} removes and adds counts different")
+        initGameTable(Room.gameTable, Room.height, Room.width)
+        Check.moves = list()
+        removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
+        falls = list()
+        adds = list()
+        getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap,
+                    adds, Room.height, Room.width)
+        Check.table = Room.gameTable
+        Check.moves.append(removes)
+        Check.moves.append(falls)
+        Check.moves.append(adds)
+        for i, move in enumerate(Check.moves):
+            if i == 0:
+                print(f"removes: {len(move)} {move}")
+            elif i == 1:
+                print(f"falls: {len(move)} {move}")
+            elif i == 2:
+                print(f"adds: {len(move)} {move}")
+        printGameTable(Room.gameTable, Room.height, Room.width)
 
     end = time.time()
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
