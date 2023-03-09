@@ -126,13 +126,13 @@ class Notifier:
                     del self.recent_turn_user[room_name]
                 if self.room_info[room_name] != {}:
                     del self.room_info[room_name]
-                if limit_timer_task != {}:
-                    logging.info(f"delete limit_timer - {limit_timer_task}")
-                    limit_timer_task.cancel()
+                if self.limit_timer_task[room_name] != {}:
+                    logging.info(f"delete limit_timer - {self.limit_timer_task[room_name]}")
+                    self.limit_timer_task[room_name].cancel()
                     del self.limit_timer_task[room_name]
-                if turn_timer_task != {}:
-                    logging.info(f"delete turn_timer_task - {turn_timer_task}")
-                    turn_timer_task.cancel()
+                if self.turn_timer_task[room_name] != {}:
+                    logging.info(f"delete turn_timer_task - {self.turn_timer_task[room_name]}")
+                    self.turn_timer_task[room_name].cancel()
                     del self.turn_timer_task[room_name]
                 if self.ready_timer_task[room_name] != {}:
                     logging.info(f"delete ready_timer_task - {self.ready_timer_task[room_name]}")
