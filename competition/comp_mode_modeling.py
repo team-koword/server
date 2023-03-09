@@ -30,7 +30,7 @@ def getSimilarity(simModel, ansWord: str, cmpWord: str) -> float:
 def getSimWords(simModel, wordList: list, answer: str) -> list:
     simData = list()
     simWords = list()
-    MIN = 0.35
+    MIN = 0.4
 
     # get similar words with similarity greater or equal than MIN
     for word in wordList:
