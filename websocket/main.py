@@ -621,6 +621,8 @@ async def websocket_endpoint(
 
                 if path == "init":
                     # 처음 게임 시작 시 3초간 대기함
+                    if game_mode == "":
+                        game_mode = "CoOpGame"
                     notifier.ready_timer_task[room_name] = asyncio.create_task(notifier.ready_timer(room_name, path, method, params, game_mode, websocket))
                 else:
                     await notifier.game_server_request(room_name, path, method, params, websocket, game_mode)
