@@ -303,7 +303,6 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 last = ""
                 if dist == 1:
                     dir = NODIR
-            if word:
 
         # try to use the first letter
         if first and not word:
@@ -314,7 +313,6 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 first = ""
                 if dist == 1:
                     dir = NODIR
-            if word:
 
         # not using first or last letter
         if not word:
