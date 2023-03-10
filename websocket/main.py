@@ -284,7 +284,7 @@ class Notifier:
         status = "continue"
         start_time = time.time()
 
-        tick_start = 1.7
+        tick_start = 1.8
 
         self.survival_timer_task[room_name] = asyncio.create_task(self.survival_timer(room_name))
 
@@ -303,7 +303,14 @@ class Notifier:
 
                 await asyncio.sleep(tick_start)
 
-                tick_start = tick_start - 0.02 if tick_start > 0.5 else 0.5
+                if tick_start > 0.9:
+                    tick_start -= 0.03
+                elif tick_start > 0.3:
+                    tick_start -= 0.03
+                elif tick_start > 0.15:
+                    tick_start -= 0.0025
+
+                #tick_start = tick_start - 0.02 if tick_start > 0.5 else 0.5
 
             except Exception as exception:
                 await self.send_msg(exception)
