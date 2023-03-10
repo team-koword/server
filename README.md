@@ -8,9 +8,9 @@
 또한 비동기 처리를 위해 FastAPI 프레임워크를 사용하였습니다.
 
 ## APM & Monitoring
-![sentry (1)](https://user-images.githubusercontent.com/115965829/224282827-9c8d987e-7299-4022-a261-b61adc98dccb.png)
-![Prometheus_software_logo svg (1)](https://user-images.githubusercontent.com/115965829/224283616-f37c1fdc-ab74-47e4-88ed-7c182d152052.png)
-![내 프로젝트 (1)](https://user-images.githubusercontent.com/115965829/224284029-834aa269-954b-4871-8684-334ab8335a64.png)
+[![sentry (1)](https://user-images.githubusercontent.com/115965829/224282827-9c8d987e-7299-4022-a261-b61adc98dccb.png)](https://sentry.io/welcome/)
+[![Prometheus_software_logo svg (1)](https://user-images.githubusercontent.com/115965829/224283616-f37c1fdc-ab74-47e4-88ed-7c182d152052.png)](https://prometheus.io/)
+[![내 프로젝트 (1)](https://user-images.githubusercontent.com/115965829/224284029-834aa269-954b-4871-8684-334ab8335a64.png)](https://grafana.com/)
 
 
 ## Project Setup
