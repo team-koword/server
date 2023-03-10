@@ -1,5 +1,6 @@
 from typing import Tuple
-from random import choice, randint, shuffle
+from collections import defaultdict
+from random import choice, shuffle
 
 
 # global variables
@@ -48,17 +49,22 @@ def getDownDist(gameTable: dict, loc: int, flag: int,
     return dist
 
 
-# init word table with empty cells
-def initGameTable(gameTable: dict, height: int, width: int) -> None:
+# init gameTable and wordMap
+def initGameData(gameTable: dict, wordMap: dict, height: int, width: int) \
+    -> Tuple[dict, dict]:
     SIZE = height * width
+    gameTable = defaultdict(list)
     for loc in range(SIZE):
         gameTable[loc] = [EMPTY, DISCNT]
+    wordMap = defaultdict(list)
+    return gameTable, wordMap
 
 
 # put words in empty cells on table
 def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 gameTable: dict, wordMap: dict, moves: list, 
-                height: int, width: int) -> None:
+                height: int, width: int) \
+    -> Tuple[dict, dict, list]:
     # local variables
     SIZE = height * width
     RIGHT, DOWN, NODIR = 1, width, 0
@@ -90,7 +96,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 loc -= 1
             return loc, dist, first, last
 
-        # get downdwards word information
+        # get downwards word information
         def __down(LastDict: dict, gameTable: dict, loc: int,
                 height: int, width: int) \
             -> Tuple[int, int, str, str]:
@@ -112,7 +118,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
         if dir == RIGHT:
             loc, dist, first, last \
                 = __right(FirstDict, LastDict, gameTable, loc, height, width)
-            if dist <= 1:
+            if dist == 1:
                 dir = DOWN
                 loc, dist, first, last \
                     = __down(LastDict, gameTable, loc, height, width)
@@ -120,18 +126,14 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
         else:
             loc, dist, first, last \
                 = __down(LastDict, gameTable, loc, height, width)
-            if dist <= 1:
+            if dist == 1:
                 dir = RIGHT
                 loc, dist, first, last \
                     = __right(FirstDict, LastDict, gameTable, loc, height, width)
         # if both directions unavailable
-        if dist <= 1:
+        if dist == 1:
             dir = NODIR
         return loc, dir, dist, first, last
-
-    # get a random single character
-    def _randchar(FirstDict: dict) -> str:
-        return choice(list(FirstDict))
 
     # get a random word end with the last character
     def _randlast(LastDict: dict, wordMap: dict, 
@@ -170,6 +172,10 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                     return word
         return ""
 
+    # get a random single character
+    def _randchar(FirstDict: dict) -> str:
+        return choice(list(FirstDict))
+
     # get a random word without using the first or last letter
     def _randword(WordDict: dict, wordMap: dict, dist: int) -> str:
         # set random length list with calibrating
@@ -177,11 +183,11 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
         end = [50, 74, 98, 99][dist - 2]
         # get a random length
         rand = choice(range(end))
-        if rand < 50:
+        if rand <= 50:
             length = "2"
-        elif 50 <= rand < 74:
+        elif 50 < rand <= 74:
             length = "3"
-        elif 74 <= rand < 98:
+        elif 74 < rand <= 98:
             length = "4"
         else:
             length = "5"
@@ -253,7 +259,7 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             rightDist = getRightDist(gameTable, loc, CONN, height, width)
             downDist = getDownDist(gameTable, loc, CONN, height, width)
             dir = RIGHT if rightDist >= 2 else DOWN
-            if dir == DOWN and downDist <= 1:
+            if dir == DOWN and downDist == 1:
                 dir = NODIR
             dist = rightDist if dir == RIGHT else downDist
             # unable to put a word
@@ -289,16 +295,15 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                                            height, width)
         word = str()
 
-        # if no direction, put only single character
-        if dir == NODIR:
-            word = _randchar(FirstDict)
-
         # try to use the last letter
-        if last and not word:
+        if last:
             word = _randlast(LastDict, wordMap, last, first, dist)
             if not word:
                 dist -= 1
                 last = ""
+                if dist == 1:
+                    dir = NODIR
+            if word:
 
         # try to use the first letter
         if first and not word:
@@ -307,10 +312,18 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
                 loc += 1
                 dist -= 1
                 first = ""
+                if dist == 1:
+                    dir = NODIR
+            if word:
 
-        # get a random word without using the first or last letter
+        # not using first or last letter
         if not word:
-            word = _randword(WordDict, wordMap, dist)
+            # get a random character if unable to put a word
+            if dist == 1 or dir == NODIR:
+                word = _randchar(FirstDict)
+            # get a random word without using the first or last letter
+            else:
+                word = _randword(WordDict, wordMap, dist)
 
         # put word in gameTable
         _put(gameTable, wordMap, loc, word, dir)
@@ -327,12 +340,13 @@ def getGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
     _recycle(FirstDict, gameTable, wordMap, height, width)
 
     moves.sort(key=lambda x: x[1])
-    return
+    return gameTable, wordMap, moves
 
 
 def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
-                   gameTable: dict, wordMap: dict, 
-                   remWords: list, moves: list, height: int, width: int) -> None:
+                   gameTable: dict, wordMap: dict, moves: list,
+                   remWords: list, height: int, width: int) \
+    -> Tuple[dict, dict, list]:
     # local variables
     SIZE = height * width
 
@@ -408,8 +422,8 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             if gameTable[loc][CHAR] != EMPTY:
                 removes.append([loc, SIZE + i, word[j]])
                 gameTable[loc] = [EMPTY, DISCNT]
-    print("removed")
-    printGameTable(gameTable, height, width)
+    # print("removed")
+    # printGameTable(gameTable, height, width)
 
     # TODO: fall characters remaining on gameTable
     falls = list()
@@ -424,22 +438,22 @@ def updateGameData(FirstDict: dict, LastDict: dict, WordDict: dict,
             _downwards(gameTable, wordMap, falls, loc, height, width)
         else:
             _nowards(gameTable, falls, loc, height, width)
-    print("falled")
-    printGameTable(gameTable, height, width)
+    # print("falled")
+    # printGameTable(gameTable, height, width)
 
     # TODO: add new characters in empty cells
     adds = list()
     getGameData(FirstDict, LastDict, WordDict, gameTable, wordMap,
                 adds, height, width)
-    print("added")
-    printGameTable(gameTable, height, width)
+    # print("added")
+    # printGameTable(gameTable, height, width)
 
     # update moves
     moves.append(removes)
     moves.append(sorted(falls, key=lambda x: -x[1]))
     moves.append(sorted(adds, key=lambda x: -x[1]))
 
-    return
+    return gameTable, wordMap, moves
 
 
 # print gameTable in terminal(for test)

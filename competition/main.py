@@ -163,19 +163,21 @@ def init(Init: InitBody) -> InitBody:
     Room.roomId = Init.roomId
     Room.turns = 0
     Room.height, Room.width = Init.size, Init.size
-    Room.gameTable = defaultdict(list)
     INIT = 0
     for user in Init.users:
         Room.users[user] = INIT
 
     # initialize table
-    initGameTable(Room.gameTable, Room.height, Room.width)
+    Room.gameTable, Room.wordMap \
+        = initGameData(Room.gameTable, Room.wordMap, Room.height, Room.width)
 
     # get game data
     Init.moves = list()
     adds = list()
-    getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap,
-                adds, Room.height, Room.width)
+    Room.gameTable, Room.wordMap, adds = \
+        getGameData(FirstDict, LastDict, WordDict, 
+                    Room.gameTable, Room.wordMap, adds, 
+                    Room.height, Room.width)
     Init.table = Room.gameTable
     Init.moves.append(adds)
 
@@ -222,18 +224,22 @@ def check(Check: CheckBody) -> CheckBody:
         or Check.answer[0] not in FindDict[str(len(Check.answer))] \
         or Check.answer not in FindDict[str(len(Check.answer))][Check.answer[0]]:
         Check.remWords = []
-    # if the answer in word table, remove only the word(includes duplicated)
+        print(f"answer {C.Cyan}{Check.answer}{C.End} not in dictionary")
+    # if the answer in gameTable, remove only the word(includes duplicated)
     elif Check.answer in wordList:
         Check.remWords = [Check.answer]
-    # get similar words in word table
+        print(f"answer {C.Cyan}{Check.answer}{C.End} in game table")
+    # get similar words in gameTable
     else:
         Check.remWords = getSimWords(simModel, wordList, Check.answer)
+        print(f"words similar with answer {C.Cyan}{Check.answer}{C.End} will be removed")
 
     # update room data
     Check.moves = list()
-    updateGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
-                   Check.remWords, Check.moves, Room.height, Room.width)
-    print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words in table")
+    Room.gameTable, Room.wordMap, Check.moves \
+        = updateGameData(FirstDict, LastDict, WordDict,
+                         Room.gameTable, Room.wordMap, Check.moves, 
+                         Check.remWords, Room.height, Room.width)
 
     # update user score and answer log
     increase = len(Check.remWords)
@@ -244,60 +250,90 @@ def check(Check: CheckBody) -> CheckBody:
 
     # reset table if words in table less than standard count
     MIN = 40
+    SIZE = Room.height * Room.width
     if len(list(Room.wordMap.keys())) < MIN:
         # set move information for all cells -> empty
-        SIZE = Room.height * Room.width
-        removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
+        removes = [[i, SIZE, Room.gameTable[i][CHAR]] for i in range(SIZE - 1, -1, -1)]
         Check.moves.append(removes)
         # initialize gameTable and wordMap
-        Room.gameTable = defaultdict(list)
-        initGameTable(Room.gameTable, Room.height, Room.width)
-        Room.wordMap = defaultdict(list)
+        Room.gameTable, Room.wordMap \
+            = initGameData(Room.gameTable, Room.wordMap, Room.height, Room.width)
         adds = list()
         # get game data again
-        getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
-                    adds, Room.height, Room.width)
+        Room.gameTable, Room.wordMap, adds \
+            = getGameData(FirstDict, LastDict, WordDict, 
+                          Room.gameTable, Room.wordMap, adds, 
+                          Room.height, Room.width)
         Check.moves.append(adds)
-        print(f"too little words in table, {C.Green}TABLE REFRESHED{C.End}")
+        print(f"{C.Cyan}{len(list(Room.wordMap.keys()))}{C.End} words were in table, {C.Green}TABLE REFRESHED{C.End}")
 
     Check.table = Room.gameTable
 
     # print at terminal(for test)
     for i, move in enumerate(Check.moves):
         if i == 0:
-            print(f"removes: {len(move)} {move}")
+            print(f"removes: {C.Cyan}{len(move)} {move}{C.End}")
         elif i == 1:
-            print(f"falls: {len(move)} {move}")
+            print(f"falls: {C.Cyan}{len(move)} {move}{C.End}")
         elif i == 2:
-            print(f"adds: {len(move)} {move}")
+            print(f"adds: {C.Cyan}{len(move)} {move}{C.End}")
         elif i == 3:
-            print(f"(reset)removes: {len(move)} {move}")
+            print(f"(reset)removes: {C.Cyan}{len(move)} {move}{C.End}")
         elif i == 4:
-            print(f"(reset)adds: {len(move)} {move}")
+            print(f"(reset)adds: {C.Cyan}{len(move)} {move}{C.End}")
     printGameTable(Room.gameTable, Room.height, Room.width)
 
-    # init gameTable if removed and added chars counts different(error)
-    if len(Check.moves[0]) != len(Check.moves[2]):
-        print(f"{C.red}ERROR{C.End} removes and adds counts different")
-        initGameTable(Room.gameTable, Room.height, Room.width)
-        Check.moves = list()
-        removes = [[i, SIZE, Room.gameTable[i]] for i in range(SIZE - 1, -1, -1)]
+    def _error(FirstDict: dict, LastDict: dict, WordDict: dict, 
+               gameTable: dict, wordMap: dict, 
+               table: dict, moves: list, height: int, width: int) \
+        -> Tuple[dict, dict, dict, list]:
+        moves = list()
+        removes = [[i, SIZE, gameTable[i][CHAR]] for i in range(SIZE - 1, -1, -1)]
         falls = list()
         adds = list()
-        getGameData(FirstDict, LastDict, WordDict, Room.gameTable, Room.wordMap,
-                    adds, Room.height, Room.width)
-        Check.table = Room.gameTable
-        Check.moves.append(removes)
-        Check.moves.append(falls)
-        Check.moves.append(adds)
-        for i, move in enumerate(Check.moves):
+        moves.append(removes)
+        moves.append(falls)
+        moves.append(adds)
+        gameTable, wordMap \
+            = initGameData(gameTable, wordMap, height, width)
+        gameTable, wordMap, adds \
+            = getGameData(FirstDict, LastDict, WordDict, 
+                          gameTable, wordMap, adds, 
+                          height, width)
+        table = gameTable
+        for i, move in enumerate(moves):
             if i == 0:
-                print(f"removes: {len(move)} {move}")
+                print(f"removes: {C.Cyan}{len(move)} {move}{C.End}")
             elif i == 1:
-                print(f"falls: {len(move)} {move}")
+                print(f"falls: {C.Cyan}{len(move)} {move}{C.End}")
             elif i == 2:
-                print(f"adds: {len(move)} {move}")
-        printGameTable(Room.gameTable, Room.height, Room.width)
+                print(f"adds: {C.Cyan}{len(move)} {move}{C.End}")
+        printGameTable(gameTable, height, width)
+        return gameTable, wordMap, table, moves
+
+    # initialize gameTable if removed and added chars counts different
+    if len(Check.moves[0]) != len(Check.moves[2]):
+        print(f"{C.red}ERROR{C.End} removes counts {C.Cyan}{Check.moves[0]}{C.End} and adds counts {C.Cyan}{Check.moves[2]}{C.End} different")
+        Room.gameTable, Room.wordMap, Check.table, Check.moves \
+            = _error(FindDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
+                     Check.table, Check.moves, Room.height, Room.width)
+
+    # check error if gameTable and wordMap unmatched
+    flag = False
+    wordList = list(Room.wordMap.keys())
+    for word in wordList:
+        temp = ""
+        for loc in Room.wordMap[word]:
+            temp += Room.gameTable[loc][CHAR]
+        if word != temp:
+            print(f"{C.Red}ERROR{C.End} gameTable and wordMap different, word: {C.Cyan}{word}{C.End}, locs: {C.Cyan}{Room.wordMap[word]}{C.End}")
+            Room.gameTable, Room.wordMap, Check.table, Check.moves \
+                = _error(FindDict, LastDict, WordDict, Room.gameTable, Room.wordMap, 
+                        Check.table, Check.moves, Room.height, Room.width)
+            flag = True
+            break
+        if flag == True:
+            break
 
     end = time.time()
     print(f"answer checked in {C.Cyan}{end - start}{C.End} secs")
